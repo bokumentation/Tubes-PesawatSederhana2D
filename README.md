@@ -13,7 +13,7 @@ Proyek ini adalah implementasi game pesawat sederhana yang terinspirasi dari gam
 
 ### Standarisasi Kode
 Gunakan **Google C++ Style Guide**
-Spaces atau Tab Display Size: 2
+dengan Spaces atau Tab Display Size: 2
 
 ### Cara Build Program
 
