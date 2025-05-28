@@ -3,7 +3,7 @@ STANDARISASI
 Gunakan Google C++ Style Guide
 Spaces: 2
 
-CARA BUILD PROGRAM
+## CARA BUILD PROGRAM ##
 cmake -S . -B build -G "MinGW Makefiles"
 cmake --build build
 ctest --test-dir build --output-on-failure
