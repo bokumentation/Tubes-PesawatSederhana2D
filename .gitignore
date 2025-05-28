@@ -1,0 +1,22 @@
+# CMake build artifacts
+/build/
+/out/
+*.cmake
+CMakePresets.json
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+
+# Executables
+*.exe
+*.o
+*.obj
+*.dll
+*.so
+*.dylib
+
+# Editor-specific files (optional, add as needed)
+.vscode/
+.idea/
+*.swp
+*~
