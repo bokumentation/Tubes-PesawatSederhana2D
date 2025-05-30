@@ -37,19 +37,24 @@ cmake --build build
 
 
 ### Cara Memperbarui Folder Proyek dari Repo yang Sudah *Diupdate*
-**Terdapat 2 pilihan** untuk memperbarui folder proyek yang sudah diclone.
-- Pilihan 1: Jika tidak ngapa-ngapain
+**Terdapat 3 pilihan** untuk memperbarui folder proyek yang sudah diclone.
+- Pilihan 1: jika perubahan belum siap di up tapu pengen disimpen sementara. bisa pakek "stash".
   ```bash
   git stash
   git pull origin main
+  git stash pop
   ```
-- Pilihan 2: Jika sudah menambahkan kode
+- Pilihan 2: Misal sudah otak-atik `src/main.cpp`, tapi pengen nyimpen kode otak-atiknya.
   ```bash
   git add src/main.cpp
   git commit -m "ini perubahan dari lokal saya"
   git pull origin main
   ```
   > Git will attempt to merge your committed local changes with the incoming changes. If there are conflicts, Git will guide you through resolving them.
+- Pilihan 3: Reset
+  ```bash
+  git reset --hard origin/main
+  ```
 
 Jika sudah diupdate, maka perlu **re-run CMake build commands**.
 ```bash

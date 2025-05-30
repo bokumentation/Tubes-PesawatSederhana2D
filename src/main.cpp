@@ -6,7 +6,6 @@ Spaces: 2
 ## CARA BUILD PROGRAM ##
 cmake -S . -B build -G "MinGW Makefiles"
 cmake --build build
-ctest --test-dir build --output-on-failure
 */
 
 #include <raylib.h>  // Mengimpor library raylib
