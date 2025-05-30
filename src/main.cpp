@@ -11,7 +11,7 @@ ctest --test-dir build --output-on-failure
 
 #include <raylib.h>  // Mengimpor library raylib
 
-#include "window.h"  // Header untuk InitGameWindow()
+#include "window.h"  // Header untuk InisialisasiGameWindow()
 
 // Pixels per frame
 struct Player {    // Mendefinisikan struktur sederhana untuk player (pesawat)
