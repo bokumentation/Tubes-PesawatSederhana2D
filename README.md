@@ -4,9 +4,10 @@
 Proyek ini adalah implementasi game pesawat sederhana yang terinspirasi dari game "Platypus".
 
 ### Persiapan yang Dibutuhkan
-- **GCC Compiler dari MinGW**
-- **CMake**:  Alat untuk membantu proses "membangun" (build) program dari kode sumber.
-- **Git dan Github**: Untuk mengelola dan mengambil kode program dari internet.
+- Sistem Operasi **Windows**
+- **GCC Compiler** dari **[MinGW](https://www.mingw-w64.org/downloads/#w64devkit)**
+- **[CMake](https://cmake.org/download/)**:  Alat untuk membantu proses "membangun" (build) program dari kode sumber.
+- **[Git](https://git-scm.com/downloads/win) dan Github**: Untuk mengelola dan mengambil kode program dari internet.
 - **VS Code** dan Extensinya
   - **CMake Extension**: Mempermudah proses build langsung dari VS Code.
   - **C/C++ Extension by Microsoft**: Menyediakan fitur seperti intellisense (bantuan penulisan kode), debugging, dan navigasi kode.
