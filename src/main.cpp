@@ -14,7 +14,6 @@ ctest --test-dir build --output-on-failure
 #include "window.h"  // Header untuk InitGameWindow()
 
 // Pixels per frame
-
 struct Player {    // Mendefinisikan struktur sederhana untuk player (pesawat)
   Rectangle rect;  // Position and size
   Color color;     // Color of the player
@@ -27,6 +26,8 @@ int main() {
 
   // inisialisasi InitGameWindow()
   InisialisasiGameWindow();
+
+  Font customFont = LoadFont("assets/fonts/JetBrainsMono-Regular.ttf");
 
   // Inisialisasi player
   Player player;
@@ -76,6 +77,7 @@ int main() {
 
     // Start drawing operations
     BeginDrawing();
+
     // Menghapus background dengan warna putih
     ClearBackground(RAYWHITE);
 
@@ -83,7 +85,10 @@ int main() {
     DrawRectangleRec(player.rect, player.color);
 
     // Draw some text for debugging or info
-    DrawText("Move the blue square with arrow keys!", 10, 10, 20, DARKGRAY);
+    // DrawText("Gerakan bluebox dengan mouse!", 10, 10, 20, DARKGRAY);
+    DrawTextEx(customFont, "Hello, JetBrains Mono!", (Vector2){10, 10},
+               customFont.baseSize, 2, BLACK);
+
     DrawFPS(SCREEN_WIDTH - 100, 10);  // Display FPS
 
     EndDrawing();  // End drawing operations
@@ -94,6 +99,7 @@ int main() {
   //                                //
 
   // Close window and unload OpenGL context
+  UnloadFont(customFont);
   CloseWindow();
   return 0;
 }

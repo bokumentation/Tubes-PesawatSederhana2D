@@ -3,14 +3,15 @@
 
 #include <raylib.h>
 
-// Declare these as external constants
+// Lebar Window
 extern const int SCREEN_WIDTH;
+// Tinggi Window
 extern const int SCREEN_HEIGHT;
+// Judul game di window
 extern const char* GAME_TITLE;
+// Player speed
 extern const int PLAYER_SPEED;
 
-// Function to initialize the Raylib window (if you still want this)
-void InisialisasiGameWindow();  // No parameters needed if using global
-                                // constants
-
+// Fungsi inisialisasi Raylib window
+void InisialisasiGameWindow();
 #endif  // WINDOW_H
