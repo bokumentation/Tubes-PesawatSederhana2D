@@ -51,11 +51,11 @@ int main() {
     //                                //
 
     // Mendapatkan posisi Mouse
-    Vector2 mousePos = GetMousePosition();
+    Vector2 mousePosisi = GetMousePosition();
 
     // Set posisi player ke posisi mouse, menengahkan player rectangle
-    player.rect.x = mousePos.x - player.rect.width / 2;
-    player.rect.y = mousePos.y - player.rect.height / 2;
+    player.rect.x = mousePosisi.x - player.rect.width / 2;
+    player.rect.y = mousePosisi.y - player.rect.height / 2;
 
     // Supaya player tetap di dalam window
     if (player.rect.x < 0) {
@@ -85,7 +85,6 @@ int main() {
     DrawRectangleRec(player.rect, player.color);
 
     // Draw some text for debugging or info
-    // DrawText("Gerakan bluebox dengan mouse!", 10, 10, 20, DARKGRAY);
     DrawTextEx(customFont, "Hello, JetBrains Mono!", (Vector2){10, 10},
                customFont.baseSize, 2, BLACK);
 

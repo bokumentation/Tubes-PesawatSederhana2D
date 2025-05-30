@@ -12,7 +12,7 @@ Proyek ini adalah implementasi game pesawat sederhana yang terinspirasi dari gam
   - **C/C++ Extension by Microsoft**: Menyediakan fitur seperti intellisense (bantuan penulisan kode), debugging, dan navigasi kode.
 
 ### Standarisasi Kode
-Gunakan **Google C++ Style Guide**
+Gunakan **[Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html)**
 dengan Spaces atau Tab Display Size: 2
 
 ### Cara Build Program
@@ -33,4 +33,26 @@ cmake --build build
 4. Menjalankan program
 ```bash
 .\build\pesawat2d.exe
+```
+
+
+### Cara Memperbarui Folder Proyek dari Repo yang Sudah *Diupdate*
+**Terdapat 2 pilihan** untuk memperbarui folder proyek yang sudah diclone.
+- Pilihan 1: Jika tidak ngapa-ngapain
+  ```bash
+  git stash
+  git pull origin main
+  ```
+- Pilihan 2: Jika sudah menambahkan kode
+  ```bash
+  git add src/main.cpp
+  git commit -m "ini perubahan dari lokal saya"
+  git pull origin main
+  ```
+  > Git will attempt to merge your committed local changes with the incoming changes. If there are conflicts, Git will guide you through resolving them.
+
+Jika sudah diupdate, maka perlu **re-run CMake build commands**.
+```bash
+cmake -S . -B build -G "MinGW Makefiles"
+cmake --build build
 ```
