@@ -11,12 +11,9 @@ ctest --test-dir build --output-on-failure
 
 #include <raylib.h>  // Mengimpor library raylib
 
-// Game window
-const int SCREEN_WIDTH = 800;   // Lebar window
-const int SCREEN_HEIGHT = 450;  // Tinggi window
-const char* GAME_TITLE =
-    "PesawatSederhana 2D (press ESC to close window)";  // Judul window
-const int PLAYER_SPEED = 5;                             // Pixels per frame
+#include "window.h"  // Header untuk InitGameWindow()
+
+// Pixels per frame
 
 struct Player {    // Mendefinisikan struktur sederhana untuk player (pesawat)
   Rectangle rect;  // Position and size
@@ -28,8 +25,8 @@ int main() {
   // 1. INISIALISASI                //
   //                                //
 
-  // Inisialisasi window dengan spesifikasi dimensi dan judul
-  InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, GAME_TITLE);
+  // inisialisasi InitGameWindow()
+  InisialisasiGameWindow();
 
   // Inisialisasi player
   Player player;
