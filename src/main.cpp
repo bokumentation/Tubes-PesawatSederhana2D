@@ -24,7 +24,10 @@ struct Player {    // Mendefinisikan struktur sederhana untuk player (pesawat)
 };
 
 int main() {
-  // 1. INISIALISASI          #################################################
+  //                                //
+  // 1. INISIALISASI                //
+  //                                //
+
   // Inisialisasi window dengan spesifikasi dimensi dan judul
   InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, GAME_TITLE);
 
@@ -38,7 +41,10 @@ int main() {
   // Set target FPS
   SetTargetFPS(60);
 
-  // 2. GAME LOOP              #################################################
+  //                                //
+  // 2. GAME LOOP                   //
+  //                                //
+
   // Kode looping selama window tidak di close (atau ESC ditekan)
   // Mendeteksi window close button atau ESC key
   while (!WindowShouldClose()) {
@@ -92,6 +98,5 @@ int main() {
 
   // Close window and unload OpenGL context
   CloseWindow();
-
   return 0;
 }
