@@ -65,6 +65,16 @@ int main() {
     bullets.push_back(newBullet);                    // Wadah peluru yang bisa digunakan
   }
 
+    // Update posisi semua peluru
+  for (auto& bullet : bullets) {    // Bertujuan untuk mengambil atau memeriksa peluru
+    bullet.rect.y -= bullet.speed * GetFrameTime();  // Bergerak ke atas
+  }
+  
+  // Hapus peluru yang keluar dari layar
+  bullets.erase(std::remove_if(bullets.begin(), bullets.end(),
+              [](const Bullet& b) { return b.rect.y + b.rect.height < 0; }),
+              bullets.end());
+
   // Kode looping selama window tidak di close (atau ESC ditekan)
   // Mendeteksi window close button atau ESC key
   while (!WindowShouldClose()) {
