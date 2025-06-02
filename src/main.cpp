@@ -56,13 +56,13 @@ int main() {
   // Kontrol menembak: klik kiri mouse atau tombol spasi
   if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) || IsKeyPressed(KEY_SPACE)) { // Sebagai input untuk menembak(klick kiri & spasi)
     Bullet newBullet;   // Membuat objek peluru
-    newBullet.rect = {
+    newBullet.rect = {  // Mengatur ukuran peluru
         player.rect.x + player.rect.width / 2 - 5,  // tengah player
         player.rect.y,                              // muncul dari atas player
         10, 20};                                     // ukuran peluru
     newBullet.speed = 500;                           // kecepatan peluru
-    newBullet.color = RED;
-    bullets.push_back(newBullet);
+    newBullet.color = RED;                           // Warna peluru
+    bullets.push_back(newBullet);                    // Wadah peluru yang bisa digunakan
   }
 
   // Kode looping selama window tidak di close (atau ESC ditekan)
