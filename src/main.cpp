@@ -3,7 +3,8 @@ STANDARISASI
 Gunakan Google C++ Style Guide
 Spaces: 2
 
-## CARA BUILD PROGRAM ##
+CARA BUILD PROGRAM
+
 cmake -S . -B build -G "MinGW Makefiles"
 cmake --build build
 */
@@ -12,7 +13,6 @@ cmake --build build
 
 #include "window.h"  // Header untuk InisialisasiGameWindow()
 
-// Pixels per frame
 struct Player {    // Mendefinisikan struktur sederhana untuk player (pesawat)
   Rectangle rect;  // Position and size
   Color color;     // Color of the player
@@ -84,7 +84,7 @@ int main() {
     DrawRectangleRec(player.rect, player.color);
 
     // Draw some text for debugging or info
-    DrawTextEx(customFont, "Hello, JetBrains Mono!", (Vector2){10, 10},
+    DrawTextEx(customFont, "Hello, JetBrains Mono!", Vector2{10, 10},
                customFont.baseSize, 2, BLACK);
 
     DrawFPS(SCREEN_WIDTH - 100, 10);  // Display FPS
