@@ -13,9 +13,17 @@ cmake --build build
 
 #include "window.h"  // Header untuk InisialisasiGameWindow()
 
+#include <vector>  // Untuk menyimpan peluru
+
 struct Player {    // Mendefinisikan struktur sederhana untuk player (pesawat)
   Rectangle rect;  // Position and size
   Color color;     // Color of the player
+};
+
+struct Bullet {    // Mendefinisikan struktur pada sistem menembak
+  Rectangle rect;  // Menyimpan posisi peluru & ukuran peluru
+  float speed;     // Menyimpan Kecepatan peluru
+  Color color;     // Warna pada peluru
 };
 
 int main() {
@@ -33,6 +41,9 @@ int main() {
   player.rect = {(float)SCREEN_WIDTH / 2 - 25, (float)SCREEN_HEIGHT / 2 - 25,
                  50, 50};  // Centered 50x50 square
   player.color = BLUE;     // Blue plane
+
+  std::vector<Bullet> bullets;  // Tempat penyimpanan peluru
+
   // Fungsi menyembunyikan kursor dalam game
   HideCursor();
   // Set target FPS
@@ -41,6 +52,18 @@ int main() {
   //                                //
   // 2. GAME LOOP                   //
   //                                //
+
+  // Kontrol menembak: klik kiri mouse atau tombol spasi
+  if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) || IsKeyPressed(KEY_SPACE)) { // Sebagai input untuk menembak(klick kiri & spasi)
+    Bullet newBullet;   // Membuat objek peluru
+    newBullet.rect = {  // Mengatur ukuran peluru
+        player.rect.x + player.rect.width / 2 - 5,  // tengah player
+        player.rect.y,                              // muncul dari atas player
+        10, 20};                                     // ukuran peluru
+    newBullet.speed = 500;                           // kecepatan peluru
+    newBullet.color = RED;                           // Warna peluru
+    bullets.push_back(newBullet);                    // Wadah peluru yang bisa digunakan
+  }
 
   // Kode looping selama window tidak di close (atau ESC ditekan)
   // Mendeteksi window close button atau ESC key
