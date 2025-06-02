@@ -119,6 +119,11 @@ int main() {
     // Draw some text for debugging or info
     DrawTextEx(customFont, "Hello, JetBrains Mono!", Vector2{10, 10},
                customFont.baseSize, 2, BLACK);
+    
+    // Gambar semua peluru
+    for (const auto& bullet : bullets) {
+      DrawRectangleRec(bullet.rect, bullet.color);
+    }
 
     DrawFPS(SCREEN_WIDTH - 100, 10);  // Display FPS
 
