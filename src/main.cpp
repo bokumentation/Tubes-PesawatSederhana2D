@@ -11,9 +11,10 @@ cmake --build build
 
 #include <raylib.h>  // Mengimpor library raylib
 
-#include "window.h"  // Header untuk InisialisasiGameWindow()
+#include <algorithm>  // Untuk remove_if
+#include <vector>     // Untuk menyimpan peluru
 
-#include <vector>  // Untuk menyimpan peluru
+#include "window.h"  // Header untuk InisialisasiGameWindow()
 
 struct Player {    // Mendefinisikan struktur sederhana untuk player (pesawat)
   Rectangle rect;  // Position and size
@@ -54,26 +55,33 @@ int main() {
   //                                //
 
   // Kontrol menembak: klik kiri mouse atau tombol spasi
-  if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) || IsKeyPressed(KEY_SPACE)) { // Sebagai input untuk menembak(klick kiri & spasi)
-    Bullet newBullet;   // Membuat objek peluru
-    newBullet.rect = {  // Mengatur ukuran peluru
+  if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) ||
+      IsKeyPressed(
+          KEY_SPACE)) {  // Sebagai input untuk menembak(klick kiri & spasi)
+    Bullet newBullet;    // Membuat objek peluru
+    newBullet.rect = {
+        // Mengatur ukuran peluru
         player.rect.x + player.rect.width / 2 - 5,  // tengah player
         player.rect.y,                              // muncul dari atas player
-        10, 20};                                     // ukuran peluru
-    newBullet.speed = 500;                           // kecepatan peluru
-    newBullet.color = RED;                           // Warna peluru
-    bullets.push_back(newBullet);                    // Wadah peluru yang bisa digunakan
+        10, 20};                                    // ukuran peluru
+    newBullet.speed = 500;                          // kecepatan peluru
+    newBullet.color = RED;                          // Warna peluru
+    bullets.push_back(newBullet);  // Wadah peluru yang bisa digunakan
   }
 
-    // Update posisi semua peluru
-  for (auto& bullet : bullets) {    // Bertujuan untuk mengambil atau memeriksa peluru
+  // Update posisi semua peluru
+  for (auto& bullet :
+       bullets) {  // Bertujuan untuk mengambil atau memeriksa peluru
     bullet.rect.y -= bullet.speed * GetFrameTime();  // Bergerak ke atas
   }
-  
-  // Hapus peluru yang keluar dari layar
+
+  // Hapus peluru yang keluar dari layar | Update, remove_if butuh #include
+  // <algorithm> - ibe
   bullets.erase(std::remove_if(bullets.begin(), bullets.end(),
-              [](const Bullet& b) { return b.rect.y + b.rect.height < 0; }),
-              bullets.end());
+                               [](const Bullet& b) {
+                                 return b.rect.y + b.rect.height < 0;
+                               }),
+                bullets.end());
 
   // Kode looping selama window tidak di close (atau ESC ditekan)
   // Mendeteksi window close button atau ESC key
@@ -119,7 +127,7 @@ int main() {
     // Draw some text for debugging or info
     DrawTextEx(customFont, "Hello, JetBrains Mono!", Vector2{10, 10},
                customFont.baseSize, 2, BLACK);
-    
+
     // Gambar semua peluru
     for (const auto& bullet : bullets) {
       DrawRectangleRec(bullet.rect, bullet.color);
