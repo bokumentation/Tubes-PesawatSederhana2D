@@ -7,6 +7,8 @@ CARA BUILD PROGRAM
 
 cmake -S . -B build -G "MinGW Makefiles"
 cmake --build build
+
+-- Update Teddy 250604
 */
 
 #include <raylib.h>  // Mengimpor library raylib
