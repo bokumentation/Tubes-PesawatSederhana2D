@@ -62,6 +62,8 @@ int main() {
 
   std::vector<Bullet> bullets;  // Tempat penyimpanan peluru
 
+  int skor = 0;  // <<<<< Tambahan: variabel skor
+
   // Fungsi menyembunyikan kursor dalam game
   HideCursor();
   // Set target FPS
@@ -105,6 +107,7 @@ int main() {
         [&](const Bullet& b) {
           if (CheckCollisionRecs(b.rect, enemy.rect)) {
             musuhHidup = false;  // Musuh hancur
+            skor += 10;          // <<<<< Tambahan: tambah skor
             return true;         // Hapus peluru
           }
           return b.rect.x > SCREEN_WIDTH;
@@ -165,6 +168,9 @@ int main() {
     for (const auto& bullet : bullets) {
       DrawRectangleRec(bullet.rect, bullet.color);
     }
+
+    // <<<<< Tambahan: tampilkan skor
+    DrawText(TextFormat("SKOR: %d", skor), 10, 40, 20, DARKGREEN);
 
     DrawFPS(SCREEN_WIDTH - 100, 10);  // Display FPS
 
