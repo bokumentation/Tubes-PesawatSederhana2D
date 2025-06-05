@@ -19,9 +19,6 @@ cmake --build build
 #include "player_data.h"  // NEW: Include our player data and leaderboard header
 #include "window.h"       // Header for InisialisasiGameWindow()
 
-// Removed: <string>, <fstream>, <sstream>, <map> as they are now in
-// player_data.cpp
-
 // --- Game States ---
 enum GameState { TITLE_SCREEN, NAME_INPUT, GAMEPLAY, GAME_OVER, LEADERBOARD };
 
