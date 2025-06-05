@@ -29,9 +29,13 @@ struct Bullet {    // Mendefinisikan struktur pada sistem menembak
   Color color;     // Warna pada peluru
 };
 
+struct Enemy {     // Struktur musuh
+  Rectangle rect;  // Posisi & ukuran musuh
+  Color color;     // Warna musuh
+};
+
 float shootCooldown = 0.0f;
 const float shootCooldownTime = 0.2f; // 0.2 detik delay antara tembakan
-
 
 int main() {
   //                                //
@@ -48,6 +52,13 @@ int main() {
   player.rect = {(float)SCREEN_WIDTH / 2 - 25, (float)SCREEN_HEIGHT / 2 - 25,
                  50, 50};  // Centered 50x50 square
   player.color = BLUE;     // Blue plane
+
+  // Inisialisasi musuh
+  Enemy enemy;
+  enemy.rect = {SCREEN_WIDTH - 100, SCREEN_HEIGHT / 2 - 25, 50, 50};  // Posisi kanan tengah layar
+  enemy.color = DARKGRAY;
+
+  bool musuhHidup = true;  // Musuh hidup saat awal
 
   std::vector<Bullet> bullets;  // Tempat penyimpanan peluru
 
@@ -88,12 +99,22 @@ int main() {
       bullet.rect.x += bullet.speed * GetFrameTime();  // Bergerak ke kanan
     }
 
-    // Hapus peluru yang keluar dari layar
-    bullets.erase(std::remove_if(bullets.begin(), bullets.end(),
-                               [](const Bullet& b) {
-                                 return b.rect.x > SCREEN_WIDTH;
-                               }),
-                bullets.end());
+    // Deteksi tabrakan peluru dengan musuh
+    if (musuhHidup) {
+      bullets.erase(std::remove_if(bullets.begin(), bullets.end(),
+        [&](const Bullet& b) {
+          if (CheckCollisionRecs(b.rect, enemy.rect)) {
+            musuhHidup = false;  // Musuh hancur
+            return true;         // Hapus peluru
+          }
+          return b.rect.x > SCREEN_WIDTH;
+        }), bullets.end());
+    } else {
+      bullets.erase(std::remove_if(bullets.begin(), bullets.end(),
+        [](const Bullet& b) {
+          return b.rect.x > SCREEN_WIDTH;
+        }), bullets.end());
+    }
 
     // Mendapatkan posisi Mouse
     Vector2 mousePosisi = GetMousePosition();
@@ -132,6 +153,13 @@ int main() {
     // Draw some text for debugging or info
     DrawTextEx(customFont, "Hello, JetBrains Mono!", Vector2{10, 10},
                customFont.baseSize, 2, BLACK);
+
+    // Gambar musuh jika masih hidup
+    if (musuhHidup) {
+      DrawRectangleRec(enemy.rect, enemy.color);
+    } else {
+      DrawText("MUSUH HANCUR!", SCREEN_WIDTH / 2 - 80, 40, 20, RED);
+    }
 
     // Gambar semua peluru
     for (const auto& bullet : bullets) {
