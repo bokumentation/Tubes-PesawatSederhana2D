@@ -51,7 +51,7 @@ struct Enemy {
 // --- Global Game State Variables ---
 GameState currentGameState = TITLE_SCREEN;
 int currentScore = 0;  // Renamed to avoid conflict with g_score in player_data
-int currentLives = 3;  // Renamed for clarity
+int currentLives = 1;  // Renamed for clarity
 
 // For blinking cursor (kept in main for simplicity as it's UI specific)
 int framesCounter = 0;
@@ -78,6 +78,13 @@ std::uniform_real_distribution<> enemySpeed(100.0f, 250.0f);
 double lastEnemySpawnTime = 0.0;
 float enemySpawnInterval = 2.0f;
 
+// -- New Variables for player's firing rate
+
+// Time since the last bullet was fired
+double lastShotTime = 0.0;
+// Seconds between shots (e.g., 0.15s for rapid fire)
+float playerFireRate = 0.15f;
+
 // --- Function Prototypes (for main.cpp's responsibilities) ---
 void ResetGameplayElements();  // Resets only game-specific elements
 
@@ -88,7 +95,13 @@ int main() {
 
   InisialisasiGameWindow();
 
-  Font customFont = LoadFont("assets/fonts/JetBrainsMono-Regular.ttf");
+  Font customFont =
+      LoadFontEx("assets/fonts/JetBrainsMono-Regular.ttf", 20, 0, 0);
+  SetTextureFilter(customFont.texture, TEXTURE_FILTER_BILINEAR);
+
+  Font titleFont =
+      LoadFontEx("assets/fonts/JetBrainsMono-Regular.ttf", 30, 0, 0);
+  SetTextureFilter(titleFont.texture, TEXTURE_FILTER_BILINEAR);
 
   // Load textures (better to do once)
   backgroundTex = LoadTexture("assets/backgrounds/space_bg.png");
@@ -170,14 +183,17 @@ int main() {
           player.rect.y = SCREEN_HEIGHT - player.rect.height;
         };
 
-        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) &&
+            (GetTime() - lastShotTime >= playerFireRate)) {
           Bullet newBullet;
           newBullet.rect = {player.rect.x + player.rect.width,
                             player.rect.y + player.rect.height / 2 - 5, 20, 10};
-          newBullet.speed = 500;
+          newBullet.speed = 1000;
           newBullet.color = RED;
           newBullet.active = true;
           playerBullets.push_back(newBullet);
+
+          lastShotTime = GetTime();
         }
 
         for (auto& bullet : playerBullets) {
@@ -203,7 +219,7 @@ int main() {
           newEnemy.active = true;
           enemies.push_back(newEnemy);
           lastEnemySpawnTime = GetTime();
-          enemySpawnInterval = GetRandomValue(100, 300) / 100.0f;
+          enemySpawnInterval = GetRandomValue(50, 150) / 100.0f;
         }
 
         for (auto& enemy : enemies) {
@@ -290,12 +306,11 @@ int main() {
         const char* titleText = "PESAWAT SEDERHANA 2D";
         const char* startText = "Press ENTER or CLICK to Start";
         int titleWidth =
-            MeasureTextEx(customFont, titleText, customFont.baseSize * 1.5, 2)
-                .x;
+            MeasureTextEx(titleFont, titleText, customFont.baseSize * 1.5, 2).x;
         int startWidth =
             MeasureTextEx(customFont, startText, customFont.baseSize, 2).x;
 
-        DrawTextEx(customFont, titleText,
+        DrawTextEx(titleFont, titleText,
                    Vector2{(float)SCREEN_WIDTH / 2 - titleWidth / 2,
                            (float)SCREEN_HEIGHT / 2 - 50},
                    customFont.baseSize * 1.5, 2, BLACK);
@@ -371,7 +386,7 @@ int main() {
                                           customFont.baseSize * 0.8, 2)
                                 .x;
 
-        DrawTextEx(customFont, gameOverText,
+        DrawTextEx(titleFont, gameOverText,
                    Vector2{(float)SCREEN_WIDTH / 2 - gameOverWidth / 2,
                            (float)SCREEN_HEIGHT / 2 - 70},
                    customFont.baseSize * 1.5, 2, BLACK);
@@ -390,7 +405,7 @@ int main() {
         int titleWidth = MeasureTextEx(customFont, leaderboardTitle,
                                        customFont.baseSize * 1.5, 2)
                              .x;
-        DrawTextEx(customFont, leaderboardTitle,
+        DrawTextEx(titleFont, leaderboardTitle,
                    Vector2{(float)SCREEN_WIDTH / 2 - titleWidth / 2, 30},
                    customFont.baseSize * 1.5, 2, BLACK);
 
@@ -418,6 +433,7 @@ int main() {
   UnloadTexture(midgroundTex);
   UnloadTexture(foregroundTex);
   UnloadFont(customFont);
+  UnloadFont(titleFont);
   CloseWindow();
   return 0;
 }
@@ -425,7 +441,7 @@ int main() {
 // --- Function Definitions for main.cpp ---
 void ResetGameplayElements() {
   currentScore = 0;
-  currentLives = 3;
+  currentLives = 1;
   playerBullets.clear();
   enemies.clear();
   // Reset enemy spawning timer as well for a fresh start

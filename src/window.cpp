@@ -7,5 +7,6 @@ const int PLAYER_SPEED =
     5;  // This constant is less relevant now that speed is in Player struct
 
 void InisialisasiGameWindow() {
+  SetConfigFlags(FLAG_MSAA_4X_HINT);
   InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, GAME_TITLE);
 }
