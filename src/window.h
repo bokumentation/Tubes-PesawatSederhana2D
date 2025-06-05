@@ -9,7 +9,8 @@ extern const int SCREEN_WIDTH;
 extern const int SCREEN_HEIGHT;
 // Judul game di window
 extern const char* GAME_TITLE;
-// Player speed
+// Player speed (you might move this to the Player struct as in the updated
+// main.cpp)
 extern const int PLAYER_SPEED;
 
 // Fungsi inisialisasi Raylib window
