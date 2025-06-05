@@ -12,35 +12,74 @@ cmake --build build
 #include <raylib.h>  // Mengimpor library raylib
 
 #include <algorithm>  // For std::remove_if
-#include <random>     // Untuk spawning musuh secara acak
-#include <vector>     // Untuk menyimpan peluru dan musuh
+#include <cstring>
+#include <random>  // For random enemy spawning
+#include <vector>  // For storing bullets and enemies
 
-#include "window.h"  // Header untuk InisialisasiGameWindow()
+#include "player_data.h"  // NEW: Include our player data and leaderboard header
+#include "window.h"       // Header for InisialisasiGameWindow()
 
-struct Player {    // Mendefinisikan struktur sederhana untuk player (pesawat)
-  Rectangle rect;  // Position and size
-  Color color;     // Color of the player
+// Removed: <string>, <fstream>, <sstream>, <map> as they are now in
+// player_data.cpp
+
+// --- Game States ---
+enum GameState { TITLE_SCREEN, NAME_INPUT, GAMEPLAY, GAME_OVER, LEADERBOARD };
+
+// --- Player Structure ---
+struct Player {
+  Rectangle rect;
+  Color color;
 };
 
-struct Bullet {    // Mendefinisikan struktur pada sistem menembak
-  Rectangle rect;  // Menyimpan posisi peluru & ukuran peluru
-  float speed;     // Menyimpan Kecepatan peluru
-  Color color;     // Warna pada peluru
-  bool active;     // True if the bullet is currently active/on screen
+// --- Bullet Structure ---
+struct Bullet {
+  Rectangle rect;
+  float speed;
+  Color color;
+  bool active;
 };
 
-struct Enemy {     // Mendefinisikan struktur untuk musuh
-  Rectangle rect;  // Position and size
-  Color color;     // Color of the enemy
-  float speed;     // Movement speed of the enemy
-  int health;      // Enemy health
-  bool active;     // True if the enemy is currently active/on screen
+// --- Enemy Structure ---
+struct Enemy {
+  Rectangle rect;
+  Color color;
+  float speed;
+  int health;
+  bool active;
 };
 
-// Global variables for game state (you might want to encapsulate these in a
-// Game class later)
-int score = 0;
-int lives = 3;
+// --- Global Game State Variables ---
+GameState currentGameState = TITLE_SCREEN;
+int currentScore = 0;  // Renamed to avoid conflict with g_score in player_data
+int currentLives = 3;  // Renamed for clarity
+
+// For blinking cursor (kept in main for simplicity as it's UI specific)
+int framesCounter = 0;
+
+// --- Gameplay-specific variables (not part of player_data) ---
+std::vector<Bullet> playerBullets;
+std::vector<Enemy> enemies;
+
+float scrollingBack = 0.0f;
+float scrollingMid = 0.0f;
+float scrollingFore = 0.0f;
+
+Texture2D backgroundTex;  // Declared here, loaded in main
+Texture2D midgroundTex;
+Texture2D foregroundTex;
+
+// Random number generation for enemy spawning
+std::random_device rd;
+std::mt19937 gen(rd());
+std::uniform_int_distribution<> enemySpawnY(0, SCREEN_HEIGHT - 50);
+std::uniform_real_distribution<> enemySpeed(100.0f, 250.0f);
+
+// Timer for enemy spawning
+double lastEnemySpawnTime = 0.0;
+float enemySpawnInterval = 2.0f;
+
+// --- Function Prototypes (for main.cpp's responsibilities) ---
+void ResetGameplayElements();  // Resets only game-specific elements
 
 int main() {
   //                                //
@@ -51,43 +90,21 @@ int main() {
 
   Font customFont = LoadFont("assets/fonts/JetBrainsMono-Regular.ttf");
 
-  // Inisialisasi player
-  Player player;
+  // Load textures (better to do once)
+  backgroundTex = LoadTexture("assets/backgrounds/space_bg.png");
+  midgroundTex = LoadTexture("assets/backgrounds/stars_mid.png");
+  foregroundTex = LoadTexture("assets/backgrounds/stars_fore.png");
+
+  // Initialize player (initial state, will be reset on game start)
+  Player player;  // Player object remains in main or game manager
   player.rect = {(float)SCREEN_WIDTH / 2 - 25, (float)SCREEN_HEIGHT / 2 - 25,
-                 50, 50};  // Centered 50x50 square
-  player.color = BLUE;     // Blue plane
+                 50, 50};
+  player.color = BLUE;
 
-  std::vector<Bullet> playerBullets;  // Tempat penyimpanan peluru player
-  std::vector<Enemy> enemies;         // Tempat penyimpanan musuh
+  // Initialize player data and load leaderboard
+  InitPlayerData();  // Call the function from player_data.cpp
 
-  // Background scrolling variables
-  float scrollingBack = 0.0f;
-  float scrollingMid = 0.0f;
-  float scrollingFore = 0.0f;
-
-  // IMPORTANT: You need to have these image files in your assets/backgrounds/
-  // directory For example: assets/backgrounds/space_bg.png
-  // assets/backgrounds/stars_mid.png
-  // assets/backgrounds/stars_fore.png
-  Texture2D backgroundTex = LoadTexture("assets/backgrounds/space_bg.png");
-  Texture2D midgroundTex = LoadTexture("assets/backgrounds/stars_mid.png");
-  Texture2D foregroundTex = LoadTexture("assets/backgrounds/stars_fore.png");
-
-  // Random number generation for enemy spawning
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_int_distribution<> enemySpawnY(
-      0, SCREEN_HEIGHT - 50);  // Random Y position for enemies
-  std::uniform_real_distribution<> enemySpeed(
-      100.0f, 250.0f);  // Random speed for enemies
-
-  // Timer for enemy spawning
-  double lastEnemySpawnTime = GetTime();
-  float enemySpawnInterval = 2.0f;  // Spawn an enemy every 2 seconds
-
-  // Fungsi menyembunyikan kursor dalam game
   HideCursor();
-  // Set target FPS
   SetTargetFPS(60);
 
   //                                //
@@ -95,200 +112,323 @@ int main() {
   //                                //
 
   while (!WindowShouldClose()) {
-    // Get frame time for consistent movement
     float deltaTime = GetFrameTime();
+    framesCounter++;
 
-    //                                //
-    // 3. UPDATE (LOGIKA GAME)        //
-    //                                //
-
-    // Mendapatkan posisi Mouse
-    Vector2 mousePosisi = GetMousePosition();
-
-    // Set posisi player ke posisi mouse, menengahkan player rectangle
-    player.rect.x = mousePosisi.x - player.rect.width / 2;
-    player.rect.y = mousePosisi.y - player.rect.height / 2;
-
-    // Supaya player tetap di dalam window
-    if (player.rect.x < 0) {
-      player.rect.x = 0;
-    };
-    if (player.rect.x + player.rect.width > SCREEN_WIDTH) {
-      player.rect.x = SCREEN_WIDTH - player.rect.width;
-    };
-    if (player.rect.y < 0) {
-      player.rect.y = 0;
-    };
-    if (player.rect.y + player.rect.height > SCREEN_HEIGHT) {
-      player.rect.y = SCREEN_HEIGHT - player.rect.height;
-    };
-
-    // Kontrol menembak: klik kiri mouse (or KEY_SPACE if you want to keep that
-    // option)
-    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-      Bullet newBullet;
-      newBullet.rect = {
-          player.rect.x +
-              player.rect.width,  // appears from the right edge of the player
-          player.rect.y + player.rect.height / 2 -
-              5,    // centered vertically with player
-          20, 10};  // Adjust size for a horizontal bullet (width, height)
-      newBullet.speed = 500;
-      newBullet.color = RED;
-      newBullet.active = true;
-      playerBullets.push_back(newBullet);
-    }
-
-    // Update player bullets
-    for (auto& bullet : playerBullets) {
-      if (bullet.active) {
-        bullet.rect.x += bullet.speed * deltaTime;  // Bullets fly to the right
-        if (bullet.rect.x >
-            SCREEN_WIDTH) {  // Check if bullet goes off screen to the right
-          bullet.active = false;  // Deactivate bullet when it goes off screen
+    // --- State-based Logic ---
+    switch (currentGameState) {
+      case TITLE_SCREEN: {
+        if (IsKeyPressed(KEY_ENTER) ||
+            IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+          currentGameState = NAME_INPUT;
+          g_playerName = "";  // Clear name for new input
+          memset(g_nameBuffer, 0, sizeof(g_nameBuffer));  // Clear buffer
         }
-      }
-    }
+      } break;
 
-    // Remove inactive bullets to save memory
-    playerBullets.erase(
-        std::remove_if(playerBullets.begin(), playerBullets.end(),
-                       [](const Bullet& b) { return !b.active; }),
-        playerBullets.end());
-
-    // Enemy spawning
-    if (GetTime() - lastEnemySpawnTime > enemySpawnInterval) {
-      Enemy newEnemy;
-      newEnemy.rect = {(float)SCREEN_WIDTH, (float)enemySpawnY(gen), 50,
-                       50};  // Spawn off-screen to the right
-      newEnemy.color = LIME;
-      newEnemy.speed = enemySpeed(gen);
-      newEnemy.health = 1;
-      newEnemy.active = true;
-      enemies.push_back(newEnemy);
-      lastEnemySpawnTime = GetTime();  // Reset spawn timer
-      enemySpawnInterval =
-          GetRandomValue(100, 300) /
-          100.0f;  // Randomize next spawn interval (1 to 3 seconds)
-    }
-
-    // Update enemies
-    for (auto& enemy : enemies) {
-      if (enemy.active) {
-        enemy.rect.x -= enemy.speed * deltaTime;  // Enemies move left
-        if (enemy.rect.x + enemy.rect.width < 0) {
-          enemy.active = false;  // Deactivate enemy when it goes off screen
+      case NAME_INPUT: {
+        int key = GetCharPressed();
+        while (key > 0) {
+          if ((key >= 32) && (key <= 125) && (strlen(g_nameBuffer) < 31)) {
+            g_nameBuffer[strlen(g_nameBuffer)] =
+                (char)key;  // Add character to buffer
+          }
+          key = GetCharPressed();
         }
 
-        // Collision detection: player vs enemy
-        if (CheckCollisionRecs(player.rect, enemy.rect)) {
-          lives--;               // Player loses a life
-          enemy.active = false;  // Enemy is destroyed on collision
-          if (lives <= 0) {
-            // TODO: Implement game over state
-            // For now, let's just close the window
-            // CloseWindow(); // Or set a game over flag
+        if (IsKeyPressed(KEY_BACKSPACE)) {
+          if (strlen(g_nameBuffer) > 0) {
+            g_nameBuffer[strlen(g_nameBuffer) - 1] =
+                '\0';  // Remove last character
           }
         }
-      }
-    }
 
-    // Remove inactive enemies
-    enemies.erase(std::remove_if(enemies.begin(), enemies.end(),
-                                 [](const Enemy& e) { return !e.active; }),
-                  enemies.end());
+        if (IsKeyPressed(KEY_ENTER)) {
+          if (strlen(g_nameBuffer) > 0) {
+            g_playerName = std::string(g_nameBuffer);
+            ResetGameplayElements();  // Reset gameplay specific elements
+            currentGameState = GAMEPLAY;
+          }
+        }
+      } break;
 
-    // Collision detection: player bullets vs enemies
-    for (auto& bullet : playerBullets) {
-      if (bullet.active) {
-        for (auto& enemy : enemies) {
-          if (enemy.active && CheckCollisionRecs(bullet.rect, enemy.rect)) {
-            enemy.health--;
-            bullet.active = false;  // Bullet disappears on hit
-            if (enemy.health <= 0) {
-              enemy.active = false;  // Enemy is destroyed
-              score += 10;           // Increase score
+      case GAMEPLAY: {
+        Vector2 mousePosisi = GetMousePosition();
+        player.rect.x = mousePosisi.x - player.rect.width / 2;
+        player.rect.y = mousePosisi.y - player.rect.height / 2;
+
+        if (player.rect.x < 0) {
+          player.rect.x = 0;
+        };
+        if (player.rect.x + player.rect.width > SCREEN_WIDTH) {
+          player.rect.x = SCREEN_WIDTH - player.rect.width;
+        };
+        if (player.rect.y < 0) {
+          player.rect.y = 0;
+        };
+        if (player.rect.y + player.rect.height > SCREEN_HEIGHT) {
+          player.rect.y = SCREEN_HEIGHT - player.rect.height;
+        };
+
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+          Bullet newBullet;
+          newBullet.rect = {player.rect.x + player.rect.width,
+                            player.rect.y + player.rect.height / 2 - 5, 20, 10};
+          newBullet.speed = 500;
+          newBullet.color = RED;
+          newBullet.active = true;
+          playerBullets.push_back(newBullet);
+        }
+
+        for (auto& bullet : playerBullets) {
+          if (bullet.active) {
+            bullet.rect.x += bullet.speed * deltaTime;
+            if (bullet.rect.x > SCREEN_WIDTH) {
+              bullet.active = false;
             }
-            // Break from inner loop as bullet is gone
-            break;  // A bullet can only hit one enemy
           }
         }
-      }
+        playerBullets.erase(
+            std::remove_if(playerBullets.begin(), playerBullets.end(),
+                           [](const Bullet& b) { return !b.active; }),
+            playerBullets.end());
+
+        if (GetTime() - lastEnemySpawnTime > enemySpawnInterval) {
+          Enemy newEnemy;
+          newEnemy.rect = {(float)SCREEN_WIDTH, (float)enemySpawnY(gen), 50,
+                           50};
+          newEnemy.color = LIME;
+          newEnemy.speed = enemySpeed(gen);
+          newEnemy.health = 1;
+          newEnemy.active = true;
+          enemies.push_back(newEnemy);
+          lastEnemySpawnTime = GetTime();
+          enemySpawnInterval = GetRandomValue(100, 300) / 100.0f;
+        }
+
+        for (auto& enemy : enemies) {
+          if (enemy.active) {
+            enemy.rect.x -= enemy.speed * deltaTime;
+            if (enemy.rect.x + enemy.rect.width < 0) {
+              enemy.active = false;
+            }
+
+            if (CheckCollisionRecs(player.rect, enemy.rect)) {
+              currentLives--;  // Use currentLives
+              enemy.active = false;
+              if (currentLives <= 0) {  // Check currentLives
+                AddScoreToLeaderboard(
+                    g_playerName,
+                    currentScore);  // Use g_playerName and currentScore
+                currentGameState = GAME_OVER;
+              }
+            }
+          }
+        }
+        enemies.erase(std::remove_if(enemies.begin(), enemies.end(),
+                                     [](const Enemy& e) { return !e.active; }),
+                      enemies.end());
+
+        for (auto& bullet : playerBullets) {
+          if (bullet.active) {
+            for (auto& enemy : enemies) {
+              if (enemy.active && CheckCollisionRecs(bullet.rect, enemy.rect)) {
+                enemy.health--;
+                bullet.active = false;
+                if (enemy.health <= 0) {
+                  enemy.active = false;
+                  currentScore += 10;  // Use currentScore
+                }
+                break;
+              }
+            }
+          }
+        }
+
+        scrollingBack -= 10.0f * deltaTime;
+        scrollingMid -= 20.0f * deltaTime;
+        scrollingFore -= 30.0f * deltaTime;
+
+        if (scrollingBack <= -backgroundTex.width) scrollingBack = 0;
+        if (scrollingMid <= -midgroundTex.width) scrollingMid = 0;
+        if (scrollingFore <= -foregroundTex.width) scrollingFore = 0;
+      } break;
+
+      case GAME_OVER: {
+        if (IsKeyPressed(KEY_ENTER) ||
+            IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+          currentGameState = LEADERBOARD;
+        }
+      } break;
+
+      case LEADERBOARD: {
+        if (IsKeyPressed(KEY_ENTER) ||
+            IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+          currentGameState = TITLE_SCREEN;
+        }
+      } break;
     }
 
-    // Background scrolling for parallax effect
-    scrollingBack -= 10.0f * deltaTime;
-    scrollingMid -= 20.0f * deltaTime;
-    scrollingFore -= 30.0f * deltaTime;
-
-    // Reset scrolling positions when they go off screen to create a continuous
-    // loop
-    if (scrollingBack <= -backgroundTex.width) scrollingBack = 0;
-    if (scrollingMid <= -midgroundTex.width) scrollingMid = 0;
-    if (scrollingFore <= -foregroundTex.width) scrollingFore = 0;
-
-    //                                //
-    // 4. Drawing / Menggambar        //
-    //                                //
-
+    // --- Drawing ---
     BeginDrawing();
-
     ClearBackground(RAYWHITE);
 
-    // Draw scrolling backgrounds (twice to create a continuous loop)
+    // Draw background regardless of state
     DrawTextureEx(backgroundTex, (Vector2){scrollingBack, 0}, 0.0f, 1.0f,
                   WHITE);
     DrawTextureEx(backgroundTex,
                   (Vector2){backgroundTex.width + scrollingBack, 0}, 0.0f, 1.0f,
                   WHITE);
-
     DrawTextureEx(midgroundTex, (Vector2){scrollingMid, 0}, 0.0f, 1.0f, WHITE);
     DrawTextureEx(midgroundTex, (Vector2){midgroundTex.width + scrollingMid, 0},
                   0.0f, 1.0f, WHITE);
-
     DrawTextureEx(foregroundTex, (Vector2){scrollingFore, 0}, 0.0f, 1.0f,
                   WHITE);
-    DrawTextureEx(foregroundTex,
-                  (Vector2){foregroundTex.width + scrollingFore, 0}, 0.0f, 1.0f,
-                  WHITE);
 
-    // Draw the player
-    DrawRectangleRec(player.rect, player.color);
+    switch (currentGameState) {
+      case TITLE_SCREEN: {
+        const char* titleText = "PESAWAT SEDERHANA 2D";
+        const char* startText = "Press ENTER or CLICK to Start";
+        int titleWidth =
+            MeasureTextEx(customFont, titleText, customFont.baseSize * 1.5, 2)
+                .x;
+        int startWidth =
+            MeasureTextEx(customFont, startText, customFont.baseSize, 2).x;
 
-    // Draw player bullets
-    for (const auto& bullet : playerBullets) {
-      if (bullet.active) {
-        DrawRectangleRec(bullet.rect, bullet.color);
-      }
+        DrawTextEx(customFont, titleText,
+                   Vector2{(float)SCREEN_WIDTH / 2 - titleWidth / 2,
+                           (float)SCREEN_HEIGHT / 2 - 50},
+                   customFont.baseSize * 1.5, 2, BLACK);
+        DrawTextEx(customFont, startText,
+                   Vector2{(float)SCREEN_WIDTH / 2 - startWidth / 2,
+                           (float)SCREEN_HEIGHT / 2 + 20},
+                   customFont.baseSize, 2, BLACK);
+      } break;
+
+      case NAME_INPUT: {
+        const char* promptText = "ENTER YOUR NAME:";
+        int promptWidth =
+            MeasureTextEx(customFont, promptText, customFont.baseSize, 2).x;
+        int nameBufferWidth =
+            MeasureTextEx(customFont, g_nameBuffer, customFont.baseSize, 2)
+                .x;  // Use g_nameBuffer
+
+        DrawTextEx(customFont, promptText,
+                   Vector2{(float)SCREEN_WIDTH / 2 - promptWidth / 2,
+                           (float)SCREEN_HEIGHT / 2 - 50},
+                   customFont.baseSize, 2, BLACK);
+        DrawRectangleLines(SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 2, 200, 40,
+                           BLACK);
+        DrawTextEx(customFont, g_nameBuffer,
+                   Vector2{(float)SCREEN_WIDTH / 2 - nameBufferWidth / 2,
+                           (float)SCREEN_HEIGHT / 2 + 10},
+                   customFont.baseSize, 2, BLACK);
+
+        if (((framesCounter / 30) % 2) == 0) {
+          DrawTextEx(customFont, "_",
+                     Vector2{(float)SCREEN_WIDTH / 2 - nameBufferWidth / 2 +
+                                 nameBufferWidth,
+                             (float)SCREEN_HEIGHT / 2 + 10},
+                     customFont.baseSize, 2, BLACK);
+        }
+      } break;
+
+      case GAMEPLAY: {
+        DrawRectangleRec(player.rect, player.color);
+
+        for (const auto& bullet : playerBullets) {
+          if (bullet.active) {
+            DrawRectangleRec(bullet.rect, bullet.color);
+          }
+        }
+
+        for (const auto& enemy : enemies) {
+          if (enemy.active) {
+            DrawRectangleRec(enemy.rect, enemy.color);
+          }
+        }
+
+        DrawTextEx(customFont, TextFormat("Score: %i", currentScore),
+                   Vector2{10, 10},  // Use currentScore
+                   customFont.baseSize, 2, BLACK);
+        DrawTextEx(customFont, TextFormat("Lives: %i", currentLives),
+                   Vector2{10, 40},  // Use currentLives
+                   customFont.baseSize, 2, BLACK);
+        DrawFPS(SCREEN_WIDTH - 100, 10);
+      } break;
+
+      case GAME_OVER: {
+        const char* gameOverText = "GAME OVER!";
+        const char* scoreText =
+            TextFormat("YOUR SCORE: %i", currentScore);  // Use currentScore
+        const char* continueText = "Press ENTER or CLICK to see Leaderboard";
+        int gameOverWidth = MeasureTextEx(customFont, gameOverText,
+                                          customFont.baseSize * 1.5, 2)
+                                .x;
+        int scoreWidth =
+            MeasureTextEx(customFont, scoreText, customFont.baseSize, 2).x;
+        int continueWidth = MeasureTextEx(customFont, continueText,
+                                          customFont.baseSize * 0.8, 2)
+                                .x;
+
+        DrawTextEx(customFont, gameOverText,
+                   Vector2{(float)SCREEN_WIDTH / 2 - gameOverWidth / 2,
+                           (float)SCREEN_HEIGHT / 2 - 70},
+                   customFont.baseSize * 1.5, 2, BLACK);
+        DrawTextEx(customFont, scoreText,
+                   Vector2{(float)SCREEN_WIDTH / 2 - scoreWidth / 2,
+                           (float)SCREEN_HEIGHT / 2},
+                   customFont.baseSize, 2, BLACK);
+        DrawTextEx(customFont, continueText,
+                   Vector2{(float)SCREEN_WIDTH / 2 - continueWidth / 2,
+                           (float)SCREEN_HEIGHT / 2 + 50},
+                   customFont.baseSize * 0.8, 2, BLACK);
+      } break;
+
+      case LEADERBOARD: {
+        const char* leaderboardTitle = "LEADERBOARD";
+        int titleWidth = MeasureTextEx(customFont, leaderboardTitle,
+                                       customFont.baseSize * 1.5, 2)
+                             .x;
+        DrawTextEx(customFont, leaderboardTitle,
+                   Vector2{(float)SCREEN_WIDTH / 2 - titleWidth / 2, 30},
+                   customFont.baseSize * 1.5, 2, BLACK);
+
+        DrawLeaderboard(customFont, customFont.baseSize, BLACK, SCREEN_WIDTH,
+                        SCREEN_HEIGHT);  // Pass screen dimensions
+
+        const char* backText = "Press ENTER or CLICK to Main Menu";
+        int backWidth =
+            MeasureTextEx(customFont, backText, customFont.baseSize * 0.8, 2).x;
+        DrawTextEx(customFont, backText,
+                   Vector2{(float)SCREEN_WIDTH / 2 - backWidth / 2,
+                           (float)SCREEN_HEIGHT - 50},
+                   customFont.baseSize * 0.8, 2, BLACK);
+      } break;
     }
 
-    // Draw enemies
-    for (const auto& enemy : enemies) {
-      if (enemy.active) {
-        DrawRectangleRec(enemy.rect, enemy.color);
-      }
-    }
-
-    // Draw UI elements
-    DrawTextEx(customFont, TextFormat("Score: %i", score), Vector2{10, 10},
-               customFont.baseSize, 2, BLACK);
-    DrawTextEx(customFont, TextFormat("Lives: %i", lives), Vector2{10, 40},
-               customFont.baseSize, 2, BLACK);
-
-    DrawFPS(SCREEN_WIDTH - 100, 10);  // Display FPS
-
-    EndDrawing();  // End drawing operations
+    EndDrawing();
   }
 
   //                                //
   // 5. De-Initialization           //
   //                                //
 
-  // Unload textures
   UnloadTexture(backgroundTex);
   UnloadTexture(midgroundTex);
   UnloadTexture(foregroundTex);
   UnloadFont(customFont);
   CloseWindow();
   return 0;
+}
+
+// --- Function Definitions for main.cpp ---
+void ResetGameplayElements() {
+  currentScore = 0;
+  currentLives = 3;
+  playerBullets.clear();
+  enemies.clear();
+  // Reset enemy spawning timer as well for a fresh start
+  lastEnemySpawnTime = GetTime();
+  enemySpawnInterval = 2.0f;
 }
