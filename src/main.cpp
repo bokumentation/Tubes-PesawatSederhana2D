@@ -74,24 +74,24 @@ int main() {
     if ((IsMouseButtonPressed(MOUSE_LEFT_BUTTON) || IsKeyPressed(KEY_SPACE)) && shootCooldown <= 0) {
       Bullet newBullet;
       newBullet.rect = {
-          player.rect.x + player.rect.width / 2 - 5,  // tengah player
-          player.rect.y,                              // muncul dari atas player
-          10, 20};                                    // ukuran peluru
-      newBullet.speed = 500;                          // kecepatan peluru
-      newBullet.color = RED;                          // Warna peluru
+          player.rect.x + player.rect.width,           // posisi X: kanan pesawat
+          player.rect.y + player.rect.height / 2 - 5,  // posisi Y: tengah vertikal pesawat
+          20, 10};                                     // ukuran peluru horizontal
+      newBullet.speed = 500;                           // kecepatan peluru
+      newBullet.color = RED;                           // Warna peluru
       bullets.push_back(newBullet);
       shootCooldown = shootCooldownTime; // Reset cooldown
     }
 
-    // Update posisi semua peluru
+    // Update posisi semua peluru (sekarang ke kanan)
     for (auto& bullet : bullets) {
-      bullet.rect.y -= bullet.speed * GetFrameTime();  // Bergerak ke atas
+      bullet.rect.x += bullet.speed * GetFrameTime();  // Bergerak ke kanan
     }
 
     // Hapus peluru yang keluar dari layar
     bullets.erase(std::remove_if(bullets.begin(), bullets.end(),
                                [](const Bullet& b) {
-                                 return b.rect.y + b.rect.height < 0;
+                                 return b.rect.x > SCREEN_WIDTH;
                                }),
                 bullets.end());
 
