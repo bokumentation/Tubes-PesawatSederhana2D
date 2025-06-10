@@ -16,7 +16,7 @@ cmake --build build
 #include <random>  // Untuk spawn musuh acak
 #include <vector>  // Untuk menyimpan peluru dan musuh
 
-#include "database.h"  // BARU: Sertakan header database untuk menutup koneksi
+#include "database.h"  // Sertakan header database untuk menutup koneksi dan enum
 #include "player_data.h"  // Sertakan data pemain dan leaderboard
 #include "window.h"       // Header untuk InisialisasiGameWindow()
 
@@ -61,11 +61,13 @@ int jumlahPeluruSaatIni = 50;  // Initial bullets
 // UI)
 int hitunganBingkai = 0;
 
-// Leaderboard search/sort variables (new)
-bool showingSearchResults =
-    false;                     // Flag to indicate if search results are shown
-char searchBuffer[32] = "\0";  // Buffer for search input
-int searchFramesCounter = 0;   // For blinking search cursor
+// Leaderboard search/sort variables
+bool showingSearchResults = false;
+char searchBuffer[32] = "\0";
+int searchFramesCounter = 0;
+
+// BARU: Variabel untuk menyimpan urutan sorting saat ini
+LeaderboardSortOrder currentSortOrder = SORT_BY_SCORE_DESC;
 
 // --- Gameplay-specific variables ---
 std::vector<Peluru> peluruPemain;
@@ -100,7 +102,7 @@ float intervalSpawnBintang = 5.0f;
 double waktuTembakTerakhir = 0.0;
 float lajuTembakPemain = 0.15f;
 
-// --- Function Prototypes (for main.cpp's responsibilities) ---
+// --- Prototipe Fungsi (untuk tanggung jawab main.cpp) ---
 void ResetElemenPermainan();
 
 int main() {
@@ -148,7 +150,7 @@ int main() {
   while (!WindowShouldClose()) {
     float deltaWaktu = GetFrameTime();
     hitunganBingkai++;
-    searchFramesCounter++;  // Increment for search cursor blinking
+    searchFramesCounter++;
 
     switch (statusGameSaatIni) {
       case LAYAR_JUDUL: {
@@ -202,8 +204,7 @@ int main() {
             jumlahPeluruSaatIni > 0) {
           Peluru peluruBaru;
           peluruBaru.kotak = Rectangle{
-              pemain.kotak.x + pemain.kotak.width,
-              pemain.kotak.y + 25.0f,  // Bullet spawn offset
+              pemain.kotak.x + pemain.kotak.width, pemain.kotak.y + 25.0f,
               (float)teksturPeluru.width, (float)teksturPeluru.height};
           peluruBaru.kecepatan = 1000;
           peluruBaru.aktif = true;
@@ -269,8 +270,7 @@ int main() {
               nyawaSaatIni--;
               musuh.aktif = false;
               if (nyawaSaatIni <= 0) {
-                AddScoreToLeaderboard(g_namaPemain,
-                                      skorSaatIni);  // Save score to DB
+                AddScoreToLeaderboard(g_namaPemain, skorSaatIni);
                 statusGameSaatIni = GAME_OVER;
               }
             }
@@ -328,8 +328,10 @@ int main() {
         if (IsKeyPressed(KEY_ENTER) ||
             IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
           statusGameSaatIni = LEADERBOARD;
-          // When entering LEADERBOARD, show top scores by default
-          UpdateLeaderboardDisplay(10);
+          // When entering LEADERBOARD, show top scores by default (sorted by
+          // score)
+          currentSortOrder = SORT_BY_SCORE_DESC;  // Reset sort order
+          UpdateLeaderboardDisplay(10, currentSortOrder);
           memset(searchBuffer, 0, sizeof(searchBuffer));  // Clear search buffer
           showingSearchResults = false;
         }
@@ -350,15 +352,39 @@ int main() {
           }
         }
 
-        // Perform search
+        // Perform search or refresh display
         if (IsKeyPressed(KEY_ENTER)) {
           if (strlen(searchBuffer) > 0) {
-            SearchAndDisplayLeaderboard(std::string(searchBuffer));
+            SearchAndDisplayLeaderboard(std::string(searchBuffer),
+                                        currentSortOrder);
             showingSearchResults = true;
           } else {
-            // If enter pressed with empty search, show top 10 again
-            UpdateLeaderboardDisplay(10);
+            // If enter pressed with empty search, show top 10 (or current sort
+            // order)
+            UpdateLeaderboardDisplay(10, currentSortOrder);
             showingSearchResults = false;
+          }
+        }
+
+        // NEW: Sort by Score (S key)
+        if (IsKeyPressed(KEY_S)) {
+          currentSortOrder = SORT_BY_SCORE_DESC;
+          if (showingSearchResults) {
+            SearchAndDisplayLeaderboard(std::string(searchBuffer),
+                                        currentSortOrder);
+          } else {
+            UpdateLeaderboardDisplay(10, currentSortOrder);
+          }
+        }
+
+        // NEW: Sort by Name (N key)
+        if (IsKeyPressed(KEY_N)) {
+          currentSortOrder = SORT_BY_NAME_ASC;
+          if (showingSearchResults) {
+            SearchAndDisplayLeaderboard(std::string(searchBuffer),
+                                        currentSortOrder);
+          } else {
+            UpdateLeaderboardDisplay(10, currentSortOrder);
           }
         }
 
@@ -385,8 +411,7 @@ int main() {
       case LAYAR_JUDUL: {
         const char* teksJudul = "PESAWAT SEDERHANA 2D";
         const char* teksMulai = "Tekan ENTER atau KLIK untuk Memulai";
-        const char* teksKeluar =
-            "Tekan ESC untuk Keluar";  // Added instruction to exit
+        const char* teksKeluar = "Tekan ESC untuk Keluar";
         int lebarJudul =
             MeasureTextEx(fontJudul, teksJudul, fontKustom.baseSize * 1.5, 2).x;
         int lebarMulai =
@@ -524,6 +549,16 @@ int main() {
         DrawLeaderboard(fontKustom, fontKustom.baseSize, WHITE, SCREEN_WIDTH,
                         SCREEN_HEIGHT);
 
+        // Draw sorting options
+        const char* sortScoreText = "Tekan 'S' untuk Urutkan berdasarkan Skor";
+        const char* sortNameText = "Tekan 'N' untuk Urutkan berdasarkan Nama";
+        DrawTextEx(fontKustom, sortScoreText,
+                   Vector2{10.0f, SCREEN_HEIGHT - 120.0f},
+                   fontKustom.baseSize * 0.8, 2, YELLOW);
+        DrawTextEx(fontKustom, sortNameText,
+                   Vector2{10.0f, SCREEN_HEIGHT - 100.0f},
+                   fontKustom.baseSize * 0.8, 2, YELLOW);
+
         // Draw search input box and prompt
         const char* searchPrompt = "CARI NAMA (ENTER untuk mencari/TOP 10):";
         int searchPromptWidth = MeasureTextEx(fontKustom, searchPrompt,
@@ -531,17 +566,17 @@ int main() {
                                     .x;
         DrawTextEx(fontKustom, searchPrompt,
                    Vector2{(float)SCREEN_WIDTH / 2 - searchPromptWidth / 2,
-                           (float)SCREEN_HEIGHT - 100},
+                           (float)SCREEN_HEIGHT - 70},  // Adjusted Y
                    fontKustom.baseSize * 0.8, 2, WHITE);
-        DrawRectangleLines(SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT - 70, 200, 30,
-                           WHITE);
+        DrawRectangleLines(SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT - 40, 200, 30,
+                           WHITE);  // Adjusted Y
         DrawTextEx(fontKustom, searchBuffer,
                    Vector2{(float)SCREEN_WIDTH / 2 -
                                MeasureTextEx(fontKustom, searchBuffer,
                                              fontKustom.baseSize * 0.8, 2)
                                        .x /
                                    2,
-                           (float)SCREEN_HEIGHT - 60},
+                           (float)SCREEN_HEIGHT - 30},  // Adjusted Y
                    fontKustom.baseSize * 0.8, 2, WHITE);
 
         // Blinking cursor for search input
@@ -555,17 +590,17 @@ int main() {
                                  MeasureTextEx(fontKustom, searchBuffer,
                                                fontKustom.baseSize * 0.8, 2)
                                      .x,
-                             (float)SCREEN_HEIGHT - 60},
+                             (float)SCREEN_HEIGHT - 30},  // Adjusted Y
                      fontKustom.baseSize * 0.8, 2, WHITE);
         }
 
         const char* backText =
-            "Tekan SPASI atau KLIK KANAN untuk ke Menu Utama";  // Updated text
+            "Tekan SPACE atau KLIK KANAN untuk ke Menu Utama";  // Updated text
         int backWidth =
             MeasureTextEx(fontKustom, backText, fontKustom.baseSize * 0.8, 2).x;
         DrawTextEx(fontKustom, backText,
                    Vector2{(float)SCREEN_WIDTH / 2 - backWidth / 2,
-                           (float)SCREEN_HEIGHT - 20},
+                           (float)SCREEN_HEIGHT - 0},  // Adjusted Y
                    fontKustom.baseSize * 0.8, 2, WHITE);
       } break;
     }
@@ -583,12 +618,12 @@ int main() {
   }
   UnloadFont(fontKustom);
   UnloadFont(fontJudul);
-  CloseDatabase();  // BARU: Tutup koneksi database saat keluar aplikasi
+  CloseDatabase();  // Tutup koneksi database saat keluar aplikasi
   CloseWindow();
   return 0;
 }
 
-// --- Function Definitions for main.cpp ---
+// --- Definisi Fungsi untuk main.cpp ---
 void ResetElemenPermainan() {
   skorSaatIni = 0;
   nyawaSaatIni = 1;

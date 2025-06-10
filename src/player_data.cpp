@@ -1,60 +1,36 @@
 #include "player_data.h"
 
-#include <raylib.h>  // Untuk TraceLog, Font, Color, dll.
+#include <raylib.h>
 
-#include <cstring>  // Untuk memset
-#include <fstream>  // Tidak lagi diperlukan untuk leaderboard.txt
-#include <sstream>  // Tidak lagi diperlukan untuk leaderboard.txt
+#include <cstring>
 
-#include "database.h"  // BARU: Sertakan header database kita
+#include "database.h"  // Include the database header for functions and enum
 
-// Definisi variabel global (harus didefinisikan sekali dalam file .cpp)
 std::string g_namaPemain = "";
 char g_bufferNama[32] = "\0";
-std::vector<EntriLeaderboard>
-    g_leaderboard;  // Ini sekarang akan menjadi cache dari hasil query database
-// FILE_LEADERBOARD tidak lagi digunakan
-// const std::string FILE_LEADERBOARD = "leaderboard.txt";
+std::vector<EntriLeaderboard> g_leaderboard;
 
 void InitPlayerData() {
-  // BARU: Inisialisasi database di sini
-  InitDatabase("leaderboard.db");  // Nama file database Anda
-  // Muat 10 skor teratas saat game dimulai atau untuk tampilan awal leaderboard
-  UpdateLeaderboardDisplay(10);
+  InitDatabase("leaderboard.db");
+  UpdateLeaderboardDisplay(10, SORT_BY_SCORE_DESC);  // Initial load by score
 }
-
-// SaveLeaderboard dan LoadLeaderboard yang lama tidak lagi diperlukan
-// karena digantikan oleh fungsi database
-/*
-void SaveLeaderboard() {
-  // Logic ini dipindahkan ke InsertScore dalam database.cpp
-}
-
-void LoadLeaderboard() {
-  // Logic ini digantikan oleh GetTopScores dalam database.cpp dan
-UpdateLeaderboardDisplay di bawah
-}
-*/
 
 void AddScoreToLeaderboard(const std::string& nama, int skor) {
-  // BARU: Sisipkan skor langsung ke database
   InsertScore(nama, skor);
-  // Perbarui tampilan leaderboard setelah skor baru ditambahkan
-  UpdateLeaderboardDisplay(10);  // Muat ulang 10 skor teratas
+  UpdateLeaderboardDisplay(
+      10, SORT_BY_SCORE_DESC);  // Refresh with top scores after adding
 }
 
-// BARU: Fungsi untuk memperbarui g_leaderboard dari database
-void UpdateLeaderboardDisplay(int limit) {
-  g_leaderboard = GetTopScores(limit);
-  // Kita tidak perlu mengurutkan di sini lagi, karena GetTopScores sudah
-  // mengurutkan dari DB
+// Modified: Now takes a sort order
+void UpdateLeaderboardDisplay(int limit, LeaderboardSortOrder order) {
+  g_leaderboard = GetLeaderboardEntries(limit, order);
   TraceLog(LOG_INFO, "LEADERBOARD: Data leaderboard diperbarui dari database.");
 }
 
-// BARU: Fungsi untuk mencari dan menampilkan hasil
-void SearchAndDisplayLeaderboard(const std::string& searchTerm) {
-  g_leaderboard = SearchScores(searchTerm);
-  // Tidak perlu mengurutkan lagi karena SearchScores sudah mengurutkan
+// Modified: Now takes a sort order
+void SearchAndDisplayLeaderboard(const std::string& searchTerm,
+                                 LeaderboardSortOrder order) {
+  g_leaderboard = SearchScores(searchTerm, order);
   TraceLog(LOG_INFO,
            TextFormat(
                "LEADERBOARD: Hasil pencarian untuk '%s' dimuat dari database.",

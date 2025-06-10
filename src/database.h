@@ -4,18 +4,25 @@
 #include <string>
 #include <vector>
 
-// Forward declaration of EntriLeaderboard from player_data.h
-// We need to define it here if we're not including player_data.h directly
-// in database.h, but still want to use it in function signatures.
-// Alternatively, include "player_data.h" here if EntriLeaderboard struct is
-// defined there. For simplicity in this example, let's include it.
-#include "player_data.h"  // Assuming EntriLeaderboard is defined here
+// OLD: #include "player_data.h" (REMOVE THIS LINE)
 
-// Function prototypes for database operations
+// NEW: Forward declaration for EntriLeaderboard
+// We only need to know it's a type here, not its full definition.
+struct EntriLeaderboard;  // Forward declare EntriLeaderboard
+
+// Enum for sort order
+enum LeaderboardSortOrder {
+  SORT_BY_SCORE_DESC,  // Default: Score descending
+  SORT_BY_NAME_ASC     // Name ascending
+};
+
 bool InitDatabase(const std::string& dbPath);
 void CloseDatabase();
 void InsertScore(const std::string& nama, int skor);
-std::vector<EntriLeaderboard> GetTopScores(int limit = 10);
-std::vector<EntriLeaderboard> SearchScores(const std::string& searchTerm);
+std::vector<EntriLeaderboard> GetLeaderboardEntries(
+    int limit = 10, LeaderboardSortOrder order = SORT_BY_SCORE_DESC);
+std::vector<EntriLeaderboard> SearchScores(
+    const std::string& searchTerm,
+    LeaderboardSortOrder order = SORT_BY_SCORE_DESC);
 
 #endif  // DATABASE_H

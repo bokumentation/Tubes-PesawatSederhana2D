@@ -1,25 +1,24 @@
 #include "database.h"
 
-#include <raylib.h>   // For TraceLog and TextFormat
-#include <sqlite3.h>  // SQLite C API header
+#include <raylib.h>
+#include <sqlite3.h>
 
-#include <cstring>  // For strcmp
+#include <cstring>
+#include <stdexcept>  // For std::stoi exceptions
 
-// Global database connection handle
+#include "player_data.h"
+
 static sqlite3* db = nullptr;
 
-// Callback function for sqlite3_exec to process query results
 static int callback(void* data, int argc, char** argv, char** azColName) {
   std::vector<EntriLeaderboard>* results =
       static_cast<std::vector<EntriLeaderboard>*>(data);
   EntriLeaderboard entry;
-  // Initialize with default values to prevent garbage
   entry.nama = "";
   entry.skor = 0;
 
   for (int i = 0; i < argc; i++) {
-    if (azColName[i] != nullptr &&
-        argv[i] != nullptr) {  // Check for nullptr before strcmp
+    if (azColName[i] != nullptr && argv[i] != nullptr) {
       if (strcmp(azColName[i], "nama") == 0) {
         entry.nama = argv[i];
       } else if (strcmp(azColName[i], "skor") == 0) {
@@ -29,13 +28,13 @@ static int callback(void* data, int argc, char** argv, char** azColName) {
           TraceLog(LOG_WARNING,
                    TextFormat("SQLITE: Gagal mengonversi skor '%s': %s",
                               argv[i], e.what()));
-          entry.skor = 0;  // Default to 0 on error
+          entry.skor = 0;
         }
       }
     }
   }
   results->push_back(entry);
-  return 0;  // Return 0 to continue processing rows
+  return 0;
 }
 
 bool InitDatabase(const std::string& dbPath) {
@@ -43,14 +42,13 @@ bool InitDatabase(const std::string& dbPath) {
   if (rc) {
     TraceLog(LOG_ERROR, TextFormat("SQLITE: Gagal membuka database '%s': %s",
                                    dbPath.c_str(), sqlite3_errmsg(db)));
-    db = nullptr;  // Ensure db is null if opening failed
+    db = nullptr;
     return false;
   } else {
     TraceLog(LOG_INFO, TextFormat("SQLITE: Database '%s' berhasil dibuka.",
                                   dbPath.c_str()));
   }
 
-  // Create table if it doesn't exist
   const char* sql_create_table =
       "CREATE TABLE IF NOT EXISTS leaderboard ("
       "id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -86,10 +84,6 @@ void InsertScore(const std::string& nama, int skor) {
     return;
   }
   char* zErrMsg = nullptr;
-  // Using a prepared statement is safer for user input, but for simplicity
-  // with sqlite3_exec and known input constraints, string formatting is used
-  // here. In a real application, prepared statements are strongly recommended
-  // to prevent SQL injection.
   std::string sql =
       TextFormat("INSERT INTO leaderboard (nama, skor) VALUES ('%s', %i);",
                  nama.c_str(), skor);
@@ -105,27 +99,46 @@ void InsertScore(const std::string& nama, int skor) {
   }
 }
 
-std::vector<EntriLeaderboard> GetTopScores(int limit) {
+// Renamed from GetTopScores to be more generic for sorting
+std::vector<EntriLeaderboard> GetLeaderboardEntries(
+    int limit, LeaderboardSortOrder order) {
   std::vector<EntriLeaderboard> scores;
   if (!db) {
     TraceLog(LOG_WARNING,
-             "SQLITE: Tidak ada database yang terbuka untuk mendapatkan skor "
-             "teratas.");
+             "SQLITE: Tidak ada database yang terbuka untuk mendapatkan entri "
+             "leaderboard.");
     return scores;
   }
   char* zErrMsg = nullptr;
-  std::string sql = TextFormat(
-      "SELECT nama, skor FROM leaderboard ORDER BY skor DESC LIMIT %i;", limit);
+  std::string orderByClause;
+  if (order == SORT_BY_SCORE_DESC) {
+    orderByClause = "skor DESC";
+  } else {  // SORT_BY_NAME_ASC
+    orderByClause = "nama ASC";
+  }
+
+  std::string sql;
+  if (limit > 0) {  // Apply limit if greater than 0
+    sql = TextFormat("SELECT nama, skor FROM leaderboard ORDER BY %s LIMIT %i;",
+                     orderByClause.c_str(), limit);
+  } else {  // No limit (get all, useful for search before filtering)
+    sql = TextFormat("SELECT nama, skor FROM leaderboard ORDER BY %s;",
+                     orderByClause.c_str());
+  }
+
   int rc = sqlite3_exec(db, sql.c_str(), callback, &scores, &zErrMsg);
   if (rc != SQLITE_OK) {
-    TraceLog(LOG_ERROR,
-             TextFormat("SQLITE: Gagal mendapatkan skor teratas: %s", zErrMsg));
+    TraceLog(
+        LOG_ERROR,
+        TextFormat("SQLITE: Gagal mendapatkan entri leaderboard: %s", zErrMsg));
     sqlite3_free(zErrMsg);
   }
   return scores;
 }
 
-std::vector<EntriLeaderboard> SearchScores(const std::string& searchTerm) {
+// Modified SearchScores to accept a sort order
+std::vector<EntriLeaderboard> SearchScores(const std::string& searchTerm,
+                                           LeaderboardSortOrder order) {
   std::vector<EntriLeaderboard> scores;
   if (!db) {
     TraceLog(LOG_WARNING,
@@ -133,23 +146,27 @@ std::vector<EntriLeaderboard> SearchScores(const std::string& searchTerm) {
     return scores;
   }
   char* zErrMsg = nullptr;
-  // SQL LIKE operator requires '%' wildcards. Escape single quotes in
-  // searchTerm for safety. In a real application, use sqlite3_bind_text with
-  // prepared statements for safer LIKE queries.
+
   std::string escapedSearchTerm = searchTerm;
-  // Replace single quotes with two single quotes to escape them in SQL string
-  // literals
   size_t pos = escapedSearchTerm.find('\'');
   while (pos != std::string::npos) {
     escapedSearchTerm.replace(pos, 1, "''");
-    pos = escapedSearchTerm.find(
-        '\'', pos + 2);  // Find next quote after the inserted one
+    pos = escapedSearchTerm.find('\'', pos + 2);
   }
 
+  std::string orderByClause;
+  if (order == SORT_BY_SCORE_DESC) {
+    orderByClause = "skor DESC";
+  } else {  // SORT_BY_NAME_ASC
+    orderByClause = "nama ASC";
+  }
+
+  // Note: LIMIT is not applied here, so search results show all matches in the
+  // chosen order.
   std::string sql = TextFormat(
       "SELECT nama, skor FROM leaderboard WHERE nama LIKE '%%%s%%' ORDER BY "
-      "skor DESC, nama ASC;",
-      escapedSearchTerm.c_str());
+      "%s;",
+      escapedSearchTerm.c_str(), orderByClause.c_str());
   int rc = sqlite3_exec(db, sql.c_str(), callback, &scores, &zErrMsg);
   if (rc != SQLITE_OK) {
     TraceLog(LOG_ERROR, TextFormat("SQLITE: Gagal mencari skor: %s", zErrMsg));
