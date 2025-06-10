@@ -25,21 +25,20 @@ enum GameState { LAYAR_JUDUL, MASUKAN_NAMA, PERMAINAN, GAME_OVER, LEADERBOARD };
 // --- Struktur Pemain ---
 struct Pemain {
   Rectangle kotak;
-  Color warna;
 };
 
 // --- Struktur Peluru ---
 struct Peluru {
   Rectangle kotak;
   float kecepatan;
-  Color warna;
   bool aktif;
 };
 
 // --- Struktur Musuh ---
 struct Musuh {
   Rectangle kotak;
-  Color warna;
+  // BARU: Tambahkan indeks tekstur untuk musuh yang berbeda
+  int indeksTekstur;
   float kecepatan;
   int kesehatan;
   bool aktif;
@@ -48,54 +47,56 @@ struct Musuh {
 // -- Struktur Bintang --
 struct Bintang {
   Rectangle kotak;
-  Color warna;
   float kecepatan;
   bool aktif;
 };
 
 // --- Variabel Status Game Global ---
 GameState statusGameSaatIni = LAYAR_JUDUL;
-int skorSaatIni =
-    0;  // Diubah namanya agar tidak bentrok dengan g_score di player_data
-int nyawaSaatIni = 1;          // Diubah namanya agar lebih jelas
-int jumlahPeluruSaatIni = 50;  // BARU: Jumlah peluru awal
+int skorSaatIni = 0;
+int nyawaSaatIni = 1;
+int jumlahPeluruSaatIni = 50;
 
 // Untuk kursor berkedip (tetap di main untuk kesederhanaan karena ini spesifik
 // UI)
 int hitunganBingkai = 0;
 
-// --- Variabel khusus permainan (bukan bagian dari player_data) ---
+// --- Gameplay-specific variables (not part of player_data) ---
 std::vector<Peluru> peluruPemain;
 std::vector<Musuh> musuhMusuh;
-std::vector<Bintang> koleksiBintang;  // BARU: Vektor untuk bintang
+std::vector<Bintang> koleksiBintang;
 
 float gulirBelakang = 0.0f;
 float gulirTengah = 0.0f;
 float gulirDepan = 0.0f;
 
-Texture2D teksturLatarBelakang;  // Dideklarasikan di sini, dimuat di main
+Texture2D teksturLatarBelakang;
+Texture2D teksturPemain;
+// UBAH: Gunakan vektor untuk menyimpan beberapa tekstur musuh
+std::vector<Texture2D> teksturMusuhArray;
+Texture2D teksturPeluru;
+Texture2D teksturBintang;
 
 // Pembangkitan angka acak untuk spawn musuh
 std::random_device rd;
 std::mt19937 gen(rd());
 std::uniform_int_distribution<> spawnYMusuh(0, SCREEN_HEIGHT - 50);
 std::uniform_real_distribution<> kecepatanMusuh(100.0f, 250.0f);
+// BARU: Distribusi untuk memilih indeks tekstur musuh
+std::uniform_int_distribution<> indeksTeksturMusuh(
+    0, 3);  // 0, 1, 2, 3 untuk 4 tekstur
 
-// BARU: Pembangkitan angka acak untuk spawn Bintang
-std::uniform_int_distribution<> spawnYBintang(
-    0, SCREEN_HEIGHT - 30);  // Rentang lebih kecil untuk bintang
-std::uniform_real_distribution<> kecepatanBintang(
-    80.0f, 180.0f);  // Lebih lambat dari musuh
+// Pembangkitan angka acak untuk spawn Bintang
+std::uniform_int_distribution<> spawnYBintang(0, SCREEN_HEIGHT - 30);
+std::uniform_real_distribution<> kecepatanBintang(80.0f, 180.0f);
 
 // Timer untuk spawn musuh
 double waktuSpawnMusuhTerakhir = 0.0;
 float intervalSpawnMusuh = 2.0f;
 
-// BARU: Timer untuk spawn Bintang
+// Timer untuk spawn Bintang
 double waktuSpawnBintangTerakhir = 0.0;
-float intervalSpawnBintang = 5.0f;  // Spawn bintang setiap 5 detik
-
-// -- Variabel Baru untuk laju tembak pemain
+float intervalSpawnBintang = 5.0f;
 
 // Waktu sejak peluru terakhir ditembakkan
 double waktuTembakTerakhir = 0.0;
@@ -103,13 +104,9 @@ double waktuTembakTerakhir = 0.0;
 float lajuTembakPemain = 0.15f;
 
 // --- Prototipe Fungsi (untuk tanggung jawab main.cpp) ---
-void ResetElemenPermainan();  // Mengatur ulang hanya elemen khusus game
+void ResetElemenPermainan();
 
 int main() {
-  //                                //
-  // 1. INISIALISASI                //
-  //                                //
-
   InisialisasiGameWindow();
 
   Font fontKustom =
@@ -120,37 +117,48 @@ int main() {
       LoadFontEx("assets/fonts/JetBrainsMono-Regular.ttf", 30, 0, 0);
   SetTextureFilter(fontJudul.texture, TEXTURE_FILTER_BILINEAR);
 
-  // Muat tekstur (lebih baik dilakukan sekali)
   teksturLatarBelakang = LoadTexture("assets/background.png");
+  teksturPemain = LoadTexture("assets/player.png");
+  teksturPeluru = LoadTexture("assets/bullet.png");
+  teksturBintang = LoadTexture("assets/bintang.png");
 
-  // Inisialisasi pemain (status awal, akan diatur ulang saat game dimulai)
-  Pemain pemain;  // Objek pemain tetap di main atau manajer game
-  pemain.kotak = {(float)SCREEN_WIDTH / 2 - 25, (float)SCREEN_HEIGHT / 2 - 25,
-                  50, 50};
-  pemain.warna = BLUE;
+  // BARU: Muat keempat tekstur musuh ke dalam vektor
+  teksturMusuhArray.push_back(LoadTexture("assets/enemy1.png"));
+  teksturMusuhArray.push_back(LoadTexture("assets/enemy2.png"));
+  teksturMusuhArray.push_back(LoadTexture("assets/enemy3.png"));
+  teksturMusuhArray.push_back(LoadTexture("assets/enemy4.png"));
 
-  // Inisialisasi data pemain dan muat leaderboard
-  InitPlayerData();  // Panggil fungsi dari player_data.cpp
+  // Opsional: Lakukan pemeriksaan kesalahan untuk setiap tekstur yang dimuat
+  for (size_t i = 0; i < teksturMusuhArray.size(); ++i) {
+    if (teksturMusuhArray[i].id == 0) {
+      TraceLog(LOG_ERROR,
+               TextFormat("Gagal memuat tekstur musuh%i.png!", i + 1));
+      // Anda bisa memilih untuk menghentikan program di sini atau menggunakan
+      // tekstur default
+    }
+  }
+
+  Pemain pemain;
+  pemain.kotak = {(float)SCREEN_WIDTH / 2 - teksturPemain.width / 2,
+                  (float)SCREEN_HEIGHT / 2 - teksturPemain.height / 2,
+                  (float)teksturPemain.width, (float)teksturPemain.height};
+
+  InitPlayerData();
 
   HideCursor();
   SetTargetFPS(60);
-
-  //                                //
-  // 2. GAME LOOP                   //
-  //                                //
 
   while (!WindowShouldClose()) {
     float deltaWaktu = GetFrameTime();
     hitunganBingkai++;
 
-    // --- Logika Berdasarkan Status ---
     switch (statusGameSaatIni) {
       case LAYAR_JUDUL: {
         if (IsKeyPressed(KEY_ENTER) ||
             IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
           statusGameSaatIni = MASUKAN_NAMA;
-          g_namaPemain = "";  // Bersihkan nama untuk masukan baru
-          memset(g_bufferNama, 0, sizeof(g_bufferNama));  // Bersihkan buffer
+          g_namaPemain = "";
+          memset(g_bufferNama, 0, sizeof(g_bufferNama));
         }
       } break;
 
@@ -158,23 +166,21 @@ int main() {
         int kunci = GetCharPressed();
         while (kunci > 0) {
           if ((kunci >= 32) && (kunci <= 125) && (strlen(g_bufferNama) < 31)) {
-            g_bufferNama[strlen(g_bufferNama)] =
-                (char)kunci;  // Tambahkan karakter ke buffer
+            g_bufferNama[strlen(g_bufferNama)] = (char)kunci;
           }
           kunci = GetCharPressed();
         }
 
         if (IsKeyPressed(KEY_BACKSPACE)) {
           if (strlen(g_bufferNama) > 0) {
-            g_bufferNama[strlen(g_bufferNama) - 1] =
-                '\0';  // Hapus karakter terakhir
+            g_bufferNama[strlen(g_bufferNama) - 1] = '\0';
           }
         }
 
         if (IsKeyPressed(KEY_ENTER)) {
           if (strlen(g_bufferNama) > 0) {
             g_namaPemain = std::string(g_bufferNama);
-            ResetElemenPermainan();  // Atur ulang elemen khusus permainan
+            ResetElemenPermainan();
             statusGameSaatIni = PERMAINAN;
           }
         }
@@ -198,20 +204,20 @@ int main() {
           pemain.kotak.y = SCREEN_HEIGHT - pemain.kotak.height;
         };
 
-        // BARU: Penembakan peluru dengan pemeriksaan jumlah peluru
         if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) &&
             (GetTime() - waktuTembakTerakhir >= lajuTembakPemain) &&
-            jumlahPeluruSaatIni > 0) {  // Periksa apakah peluru tersedia
+            jumlahPeluruSaatIni > 0) {
           Peluru peluruBaru;
           peluruBaru.kotak = {pemain.kotak.x + pemain.kotak.width,
-                              pemain.kotak.y + pemain.kotak.height / 2 - 5, 20,
-                              10};
+                              pemain.kotak.y + pemain.kotak.height / 2 -
+                                  teksturPeluru.height / 2,
+                              (float)teksturPeluru.width,
+                              (float)teksturPeluru.height};
           peluruBaru.kecepatan = 1000;
-          peluruBaru.warna = RED;
           peluruBaru.aktif = true;
           peluruPemain.push_back(peluruBaru);
 
-          jumlahPeluruSaatIni--;  // Kurangi jumlah peluru
+          jumlahPeluruSaatIni--;
           waktuTembakTerakhir = GetTime();
         }
 
@@ -230,9 +236,14 @@ int main() {
 
         if (GetTime() - waktuSpawnMusuhTerakhir > intervalSpawnMusuh) {
           Musuh musuhBaru;
-          musuhBaru.kotak = {(float)SCREEN_WIDTH, (float)spawnYMusuh(gen), 50,
-                             50};
-          musuhBaru.warna = LIME;
+          // BARU: Pilih indeks tekstur musuh secara acak
+          musuhBaru.indeksTekstur = indeksTeksturMusuh(gen);
+          // Gunakan dimensi dari tekstur yang dipilih
+          Texture2D teksturMusuhSaatIni =
+              teksturMusuhArray[musuhBaru.indeksTekstur];
+          musuhBaru.kotak = {(float)SCREEN_WIDTH, (float)spawnYMusuh(gen),
+                             (float)teksturMusuhSaatIni.width,
+                             (float)teksturMusuhSaatIni.height};
           musuhBaru.kecepatan = kecepatanMusuh(gen);
           musuhBaru.kesehatan = 1;
           musuhBaru.aktif = true;
@@ -241,19 +252,16 @@ int main() {
           intervalSpawnMusuh = GetRandomValue(50, 150) / 100.0f;
         }
 
-        // BARU: Logika Spawn Bintang
         if (GetTime() - waktuSpawnBintangTerakhir > intervalSpawnBintang) {
           Bintang bintangBaru;
           bintangBaru.kotak = {(float)SCREEN_WIDTH, (float)spawnYBintang(gen),
-                               20,  // Ukuran lebih kecil untuk bintang
-                               20};
-          bintangBaru.warna = YELLOW;  // Jadikan kuning
+                               (float)teksturBintang.width,
+                               (float)teksturBintang.height};
           bintangBaru.kecepatan = kecepatanBintang(gen);
           bintangBaru.aktif = true;
           koleksiBintang.push_back(bintangBaru);
           waktuSpawnBintangTerakhir = GetTime();
-          intervalSpawnBintang =
-              GetRandomValue(400, 700) / 100.0f;  // Acak interval
+          intervalSpawnBintang = GetRandomValue(400, 700) / 100.0f;
         }
 
         for (auto& musuh : musuhMusuh) {
@@ -264,12 +272,10 @@ int main() {
             }
 
             if (CheckCollisionRecs(pemain.kotak, musuh.kotak)) {
-              nyawaSaatIni--;  // Gunakan nyawaSaatIni
+              nyawaSaatIni--;
               musuh.aktif = false;
-              if (nyawaSaatIni <= 0) {  // Periksa nyawaSaatIni
-                AddScoreToLeaderboard(
-                    g_namaPemain,
-                    skorSaatIni);  // Gunakan g_namaPemain dan skorSaatIni
+              if (nyawaSaatIni <= 0) {
+                AddScoreToLeaderboard(g_namaPemain, skorSaatIni);
                 statusGameSaatIni = GAME_OVER;
               }
             }
@@ -280,18 +286,16 @@ int main() {
                            [](const Musuh& e) { return !e.aktif; }),
             musuhMusuh.end());
 
-        // BARU: Pembaruan Bintang dan Tabrakan Pemain
         for (auto& bintang : koleksiBintang) {
           if (bintang.aktif) {
             bintang.kotak.x -= bintang.kecepatan * deltaWaktu;
             if (bintang.kotak.x + bintang.kotak.width < 0) {
-              bintang.aktif = false;  // Nonaktifkan jika di luar layar
+              bintang.aktif = false;
             }
 
-            // Periksa tabrakan dengan pemain
             if (CheckCollisionRecs(pemain.kotak, bintang.kotak)) {
-              jumlahPeluruSaatIni += 5;  // Dapatkan 5 peluru per bintang
-              bintang.aktif = false;     // Nonaktifkan bintang yang terkumpul
+              jumlahPeluruSaatIni += 5;
+              bintang.aktif = false;
             }
           }
         }
@@ -309,7 +313,7 @@ int main() {
                 peluru.aktif = false;
                 if (musuh.kesehatan <= 0) {
                   musuh.aktif = false;
-                  skorSaatIni += 10;  // Gunakan skorSaatIni
+                  skorSaatIni += 10;
                 }
                 break;
               }
@@ -339,11 +343,9 @@ int main() {
       } break;
     }
 
-    // --- Menggambar ---
     BeginDrawing();
     ClearBackground(RAYWHITE);
 
-    // Gambar latar belakang terlepas dari status
     DrawTextureEx(teksturLatarBelakang, (Vector2){gulirBelakang, 0}, 0.0f, 1.0f,
                   WHITE);
     DrawTextureEx(teksturLatarBelakang,
@@ -374,8 +376,7 @@ int main() {
         int lebarPrompt =
             MeasureTextEx(fontKustom, teksPrompt, fontKustom.baseSize, 2).x;
         int lebarBufferNama =
-            MeasureTextEx(fontKustom, g_bufferNama, fontKustom.baseSize, 2)
-                .x;  // Gunakan g_bufferNama
+            MeasureTextEx(fontKustom, g_bufferNama, fontKustom.baseSize, 2).x;
 
         DrawTextEx(fontKustom, teksPrompt,
                    Vector2{(float)SCREEN_WIDTH / 2 - lebarPrompt / 2,
@@ -398,47 +399,57 @@ int main() {
       } break;
 
       case PERMAINAN: {
-        DrawRectangleRec(pemain.kotak, pemain.warna);
+        DrawTextureRec(teksturPemain,
+                       (Rectangle){0, 0, (float)teksturPemain.width,
+                                   (float)teksturPemain.height},
+                       (Vector2){pemain.kotak.x, pemain.kotak.y}, WHITE);
 
         for (const auto& peluru : peluruPemain) {
           if (peluru.aktif) {
-            DrawRectangleRec(peluru.kotak, peluru.warna);
+            DrawTextureRec(teksturPeluru,
+                           (Rectangle){0, 0, (float)teksturPeluru.width,
+                                       (float)teksturPeluru.height},
+                           (Vector2){peluru.kotak.x, peluru.kotak.y}, WHITE);
           }
         }
 
         for (const auto& musuh : musuhMusuh) {
           if (musuh.aktif) {
-            DrawRectangleRec(musuh.kotak, musuh.warna);
+            // BARU: Gambar musuh menggunakan tekstur dari array berdasarkan
+            // indeksTekstur Pastikan indeksTekstur valid sebelum mengakses
+            if (musuh.indeksTekstur >= 0 &&
+                musuh.indeksTekstur < teksturMusuhArray.size()) {
+              DrawTextureRec(
+                  teksturMusuhArray[musuh.indeksTekstur],
+                  (Rectangle){
+                      0, 0, (float)teksturMusuhArray[musuh.indeksTekstur].width,
+                      (float)teksturMusuhArray[musuh.indeksTekstur].height},
+                  (Vector2){musuh.kotak.x, musuh.kotak.y}, WHITE);
+            }
           }
         }
 
-        // BARU: Gambar koleksi Bintang
         for (const auto& bintang : koleksiBintang) {
           if (bintang.aktif) {
-            // Anda bisa menggambar bentuk atau tekstur berbeda untuk bintang
-            // Untuk saat ini, kita gambar persegi panjang kecil berwarna kuning
-            DrawRectangleRec(bintang.kotak, bintang.warna);
+            DrawTextureRec(teksturBintang,
+                           (Rectangle){0, 0, (float)teksturBintang.width,
+                                       (float)teksturBintang.height},
+                           (Vector2){bintang.kotak.x, bintang.kotak.y}, WHITE);
           }
         }
 
         DrawTextEx(fontKustom, TextFormat("Skor: %i", skorSaatIni),
-                   Vector2{10, 10},  // Gunakan skorSaatIni
-                   fontKustom.baseSize, 2, WHITE);
+                   Vector2{10, 10}, fontKustom.baseSize, 2, WHITE);
         DrawTextEx(fontKustom, TextFormat("Nyawa: %i", nyawaSaatIni),
-                   Vector2{10, 40},  // Gunakan nyawaSaatIni
-                   fontKustom.baseSize, 2, WHITE);
-        DrawTextEx(
-            fontKustom,
-            TextFormat("Peluru: %i",
-                       jumlahPeluruSaatIni),  // BARU: Tampilkan jumlah peluru
-            Vector2{10, 70}, fontKustom.baseSize, 2, WHITE);
+                   Vector2{10, 40}, fontKustom.baseSize, 2, WHITE);
+        DrawTextEx(fontKustom, TextFormat("Peluru: %i", jumlahPeluruSaatIni),
+                   Vector2{10, 70}, fontKustom.baseSize, 2, WHITE);
         DrawFPS(SCREEN_WIDTH - 100, 10);
       } break;
 
       case GAME_OVER: {
         const char* teksGameOver = "GAME OVER!";
-        const char* teksSkor =
-            TextFormat("SKOR ANDA: %i", skorSaatIni);  // Gunakan skorSaatIni
+        const char* teksSkor = TextFormat("SKOR ANDA: %i", skorSaatIni);
         const char* teksLanjutkan =
             "Tekan ENTER atau KLIK untuk melihat Leaderboard";
         int lebarGameOver = MeasureTextEx(fontKustom, teksGameOver,
@@ -474,7 +485,7 @@ int main() {
                    fontKustom.baseSize * 1.5, 2, WHITE);
 
         DrawLeaderboard(fontKustom, fontKustom.baseSize, WHITE, SCREEN_WIDTH,
-                        SCREEN_HEIGHT);  // Lewatkan dimensi layar
+                        SCREEN_HEIGHT);
 
         const char* teksKembali = "Tekan ENTER atau KLIK untuk ke Menu Utama";
         int lebarKembali =
@@ -490,11 +501,15 @@ int main() {
     EndDrawing();
   }
 
-  //                                //
-  // 5. De-Inisialisasi             //
-  //                                //
-
   UnloadTexture(teksturLatarBelakang);
+  UnloadTexture(teksturPemain);
+  UnloadTexture(teksturPeluru);
+  UnloadTexture(teksturBintang);
+  // BARU: Bongkar semua tekstur musuh dari vektor
+  for (auto& tex : teksturMusuhArray) {
+    UnloadTexture(tex);
+  }
+
   UnloadFont(fontKustom);
   UnloadFont(fontJudul);
   CloseWindow();
@@ -505,14 +520,12 @@ int main() {
 void ResetElemenPermainan() {
   skorSaatIni = 0;
   nyawaSaatIni = 1;
-  jumlahPeluruSaatIni = 50;  // BARU: Atur ulang peluru
+  jumlahPeluruSaatIni = 50;
   peluruPemain.clear();
   musuhMusuh.clear();
-  koleksiBintang.clear();  // BARU: Bersihkan bintang saat reset
-  // Atur ulang timer spawn musuh juga untuk permulaan yang baru
+  koleksiBintang.clear();
   waktuSpawnMusuhTerakhir = GetTime();
   intervalSpawnMusuh = 2.0f;
-  waktuSpawnBintangTerakhir =
-      GetTime();                // BARU: Atur ulang timer spawn bintang
-  intervalSpawnBintang = 5.0f;  // BARU: Atur ulang interval spawn bintang
+  waktuSpawnBintangTerakhir = GetTime();
+  intervalSpawnBintang = 5.0f;
 }
