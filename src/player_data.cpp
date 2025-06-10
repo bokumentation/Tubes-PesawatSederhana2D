@@ -3,62 +3,62 @@
 #include <raylib.h>  // Untuk TraceLog, Font, Color, dll.
 
 #include <cstring>  // Untuk memset
-#include <fstream>
-#include <sstream>
+#include <fstream>  // Tidak lagi diperlukan untuk leaderboard.txt
+#include <sstream>  // Tidak lagi diperlukan untuk leaderboard.txt
+
+#include "database.h"  // BARU: Sertakan header database kita
 
 // Definisi variabel global (harus didefinisikan sekali dalam file .cpp)
-std::string g_namaPemain = "";  // g_playerName -> g_namaPemain
-char g_bufferNama[32] = "\0";   // g_nameBuffer -> g_bufferNama
-std::vector<EntriLeaderboard> g_leaderboard;
-const std::string FILE_LEADERBOARD =
-    "leaderboard.txt";  // LEADERBOARD_FILE -> FILE_LEADERBOARD
+std::string g_namaPemain = "";
+char g_bufferNama[32] = "\0";
+std::vector<EntriLeaderboard>
+    g_leaderboard;  // Ini sekarang akan menjadi cache dari hasil query database
+// FILE_LEADERBOARD tidak lagi digunakan
+// const std::string FILE_LEADERBOARD = "leaderboard.txt";
 
-void InitPlayerData() { LoadLeaderboard(); }
+void InitPlayerData() {
+  // BARU: Inisialisasi database di sini
+  InitDatabase("leaderboard.db");  // Nama file database Anda
+  // Muat 10 skor teratas saat game dimulai atau untuk tampilan awal leaderboard
+  UpdateLeaderboardDisplay(10);
+}
 
+// SaveLeaderboard dan LoadLeaderboard yang lama tidak lagi diperlukan
+// karena digantikan oleh fungsi database
+/*
 void SaveLeaderboard() {
-  std::ofstream outFile(FILE_LEADERBOARD);
-  if (outFile.is_open()) {
-    for (const auto& entry : g_leaderboard) {
-      outFile << entry.nama << " " << entry.skor << "\n";
-    }
-    outFile.close();
-    TraceLog(LOG_INFO, "LEADERBOARD: Leaderboard disimpan.");
-  } else {
-    TraceLog(LOG_WARNING,
-             "LEADERBOARD: Tidak dapat membuka file untuk menulis.");
-  }
+  // Logic ini dipindahkan ke InsertScore dalam database.cpp
 }
 
 void LoadLeaderboard() {
-  g_leaderboard.clear();
-  std::ifstream inFile(FILE_LEADERBOARD);
-  if (inFile.is_open()) {
-    std::string line;
-    while (std::getline(inFile, line)) {
-      std::stringstream ss(line);
-      EntriLeaderboard entry;
-      ss >> entry.nama >> entry.skor;
-      g_leaderboard.push_back(entry);
-    }
-    inFile.close();
-    std::sort(g_leaderboard.begin(), g_leaderboard.end(),
-              std::greater<EntriLeaderboard>());
-    TraceLog(LOG_INFO, "LEADERBOARD: Leaderboard dimuat.");
-  } else {
-    TraceLog(LOG_INFO,
-             "LEADERBOARD: Tidak ada file leaderboard yang ada. Yang baru akan "
-             "dibuat saat disimpan.");
-  }
+  // Logic ini digantikan oleh GetTopScores dalam database.cpp dan
+UpdateLeaderboardDisplay di bawah
 }
+*/
 
 void AddScoreToLeaderboard(const std::string& nama, int skor) {
-  EntriLeaderboard newEntry = {nama, skor};
-  g_leaderboard.push_back(newEntry);
-  std::sort(g_leaderboard.begin(), g_leaderboard.end(),
-            std::greater<EntriLeaderboard>());
-  if (g_leaderboard.size() > 10)
-    g_leaderboard.resize(10);  // Pertahankan 10 teratas
-  SaveLeaderboard();           // Simpan segera setelah menambah/mengurutkan
+  // BARU: Sisipkan skor langsung ke database
+  InsertScore(nama, skor);
+  // Perbarui tampilan leaderboard setelah skor baru ditambahkan
+  UpdateLeaderboardDisplay(10);  // Muat ulang 10 skor teratas
+}
+
+// BARU: Fungsi untuk memperbarui g_leaderboard dari database
+void UpdateLeaderboardDisplay(int limit) {
+  g_leaderboard = GetTopScores(limit);
+  // Kita tidak perlu mengurutkan di sini lagi, karena GetTopScores sudah
+  // mengurutkan dari DB
+  TraceLog(LOG_INFO, "LEADERBOARD: Data leaderboard diperbarui dari database.");
+}
+
+// BARU: Fungsi untuk mencari dan menampilkan hasil
+void SearchAndDisplayLeaderboard(const std::string& searchTerm) {
+  g_leaderboard = SearchScores(searchTerm);
+  // Tidak perlu mengurutkan lagi karena SearchScores sudah mengurutkan
+  TraceLog(LOG_INFO,
+           TextFormat(
+               "LEADERBOARD: Hasil pencarian untuk '%s' dimuat dari database.",
+               searchTerm.c_str()));
 }
 
 void DrawLeaderboard(Font font, int fontSize, Color textColor, int screenWidth,

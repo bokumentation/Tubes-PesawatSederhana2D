@@ -9,6 +9,7 @@ set(SOURCE_FILES
   src/main.cpp
   src/window.cpp
   src/player_data.cpp
+  src/database.cpp
 )
 
 # SQLITE DIR
