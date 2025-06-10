@@ -55,7 +55,7 @@ struct Bintang {
 GameState statusGameSaatIni = LAYAR_JUDUL;
 int skorSaatIni = 0;
 int nyawaSaatIni = 1;
-int jumlahPeluruSaatIni = 20;
+int jumlahPeluruSaatIni = 2;
 
 // Untuk kursor berkedip (tetap di main untuk kesederhanaan karena ini spesifik
 // UI)
@@ -292,7 +292,7 @@ int main() {
             }
 
             if (CheckCollisionRecs(pemain.kotak, bintang.kotak)) {
-              jumlahPeluruSaatIni += 5;
+              jumlahPeluruSaatIni += 3;
               bintang.aktif = false;
             }
           }
@@ -356,10 +356,13 @@ int main() {
       case LAYAR_JUDUL: {
         const char* teksJudul = "PESAWAT SEDERHANA 2D";
         const char* teksMulai = "Tekan ENTER atau KLIK untuk Memulai";
+        const char* teksKeluar = "Tekan ESC untuk Keluar";
         int lebarJudul =
             MeasureTextEx(fontJudul, teksJudul, fontKustom.baseSize * 1.5, 2).x;
         int lebarMulai =
             MeasureTextEx(fontKustom, teksMulai, fontKustom.baseSize, 2).x;
+        int lebarKeluar =
+            MeasureTextEx(fontKustom, teksKeluar, fontKustom.baseSize, 2).x;
 
         DrawTextEx(fontJudul, teksJudul,
                    Vector2{(float)SCREEN_WIDTH / 2 - lebarJudul / 2,
@@ -368,6 +371,10 @@ int main() {
         DrawTextEx(fontKustom, teksMulai,
                    Vector2{(float)SCREEN_WIDTH / 2 - lebarMulai / 2,
                            (float)SCREEN_HEIGHT / 2 + 20},
+                   fontKustom.baseSize, 2, WHITE);
+        DrawTextEx(fontKustom, teksKeluar,
+                   Vector2{(float)SCREEN_WIDTH / 2 - lebarKeluar / 2,
+                           (float)SCREEN_HEIGHT / 2 + 40},
                    fontKustom.baseSize, 2, WHITE);
       } break;
 
@@ -527,7 +534,7 @@ int main() {
 void ResetElemenPermainan() {
   skorSaatIni = 0;
   nyawaSaatIni = 1;
-  jumlahPeluruSaatIni = 20;
+  jumlahPeluruSaatIni = 2;
   peluruPemain.clear();
   musuhMusuh.clear();
   koleksiBintang.clear();
