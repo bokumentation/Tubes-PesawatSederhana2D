@@ -208,11 +208,9 @@ int main() {
             (GetTime() - waktuTembakTerakhir >= lajuTembakPemain) &&
             jumlahPeluruSaatIni > 0) {
           Peluru peluruBaru;
-          peluruBaru.kotak = {pemain.kotak.x + pemain.kotak.width,
-                              pemain.kotak.y + pemain.kotak.height / 2 -
-                                  teksturPeluru.height / 2,
-                              (float)teksturPeluru.width,
-                              (float)teksturPeluru.height};
+          peluruBaru.kotak = {
+              pemain.kotak.x + pemain.kotak.width, pemain.kotak.y + 25.0f,
+              (float)teksturPeluru.width, (float)teksturPeluru.height};
           peluruBaru.kecepatan = 1000;
           peluruBaru.aktif = true;
           peluruPemain.push_back(peluruBaru);
