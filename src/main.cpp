@@ -11,79 +11,99 @@ cmake --build build
 
 #include <raylib.h>  // Mengimpor library raylib
 
-#include <algorithm>  // For std::remove_if
+#include <algorithm>  // Untuk std::remove_if
 #include <cstring>
-#include <random>  // For random enemy spawning
-#include <vector>  // For storing bullets and enemies
+#include <random>  // Untuk spawn musuh acak
+#include <vector>  // Untuk menyimpan peluru dan musuh
 
-#include "player_data.h"  // NEW: Include our player data and leaderboard header
-#include "window.h"       // Header for InisialisasiGameWindow()
+#include "player_data.h"  // BARU: Sertakan data pemain dan header leaderboard kita
+#include "window.h"       // Header untuk InisialisasiGameWindow()
 
-// --- Game States ---
-enum GameState { TITLE_SCREEN, NAME_INPUT, GAMEPLAY, GAME_OVER, LEADERBOARD };
+// --- Status Game ---
+enum GameState { LAYAR_JUDUL, MASUKAN_NAMA, PERMAINAN, GAME_OVER, LEADERBOARD };
 
-// --- Player Structure ---
-struct Player {
-  Rectangle rect;
-  Color color;
+// --- Struktur Pemain ---
+struct Pemain {
+  Rectangle kotak;
+  Color warna;
 };
 
-// --- Bullet Structure ---
-struct Bullet {
-  Rectangle rect;
-  float speed;
-  Color color;
-  bool active;
+// --- Struktur Peluru ---
+struct Peluru {
+  Rectangle kotak;
+  float kecepatan;
+  Color warna;
+  bool aktif;
 };
 
-// --- Enemy Structure ---
-struct Enemy {
-  Rectangle rect;
-  Color color;
-  float speed;
-  int health;
-  bool active;
+// --- Struktur Musuh ---
+struct Musuh {
+  Rectangle kotak;
+  Color warna;
+  float kecepatan;
+  int kesehatan;
+  bool aktif;
 };
 
-// --- Global Game State Variables ---
-GameState currentGameState = TITLE_SCREEN;
-int currentScore = 0;  // Renamed to avoid conflict with g_score in player_data
-int currentLives = 1;  // Renamed for clarity
+// -- Struktur Bintang --
+struct Bintang {
+  Rectangle kotak;
+  Color warna;
+  float kecepatan;
+  bool aktif;
+};
 
-// For blinking cursor (kept in main for simplicity as it's UI specific)
-int framesCounter = 0;
+// --- Variabel Status Game Global ---
+GameState statusGameSaatIni = LAYAR_JUDUL;
+int skorSaatIni =
+    0;  // Diubah namanya agar tidak bentrok dengan g_score di player_data
+int nyawaSaatIni = 1;          // Diubah namanya agar lebih jelas
+int jumlahPeluruSaatIni = 50;  // BARU: Jumlah peluru awal
 
-// --- Gameplay-specific variables (not part of player_data) ---
-std::vector<Bullet> playerBullets;
-std::vector<Enemy> enemies;
+// Untuk kursor berkedip (tetap di main untuk kesederhanaan karena ini spesifik
+// UI)
+int hitunganBingkai = 0;
 
-float scrollingBack = 0.0f;
-float scrollingMid = 0.0f;
-float scrollingFore = 0.0f;
+// --- Variabel khusus permainan (bukan bagian dari player_data) ---
+std::vector<Peluru> peluruPemain;
+std::vector<Musuh> musuhMusuh;
+std::vector<Bintang> koleksiBintang;  // BARU: Vektor untuk bintang
 
-Texture2D backgroundTex;  // Declared here, loaded in main
-Texture2D midgroundTex;
-Texture2D foregroundTex;
+float gulirBelakang = 0.0f;
+float gulirTengah = 0.0f;
+float gulirDepan = 0.0f;
 
-// Random number generation for enemy spawning
+Texture2D teksturLatarBelakang;  // Dideklarasikan di sini, dimuat di main
+
+// Pembangkitan angka acak untuk spawn musuh
 std::random_device rd;
 std::mt19937 gen(rd());
-std::uniform_int_distribution<> enemySpawnY(0, SCREEN_HEIGHT - 50);
-std::uniform_real_distribution<> enemySpeed(100.0f, 250.0f);
+std::uniform_int_distribution<> spawnYMusuh(0, SCREEN_HEIGHT - 50);
+std::uniform_real_distribution<> kecepatanMusuh(100.0f, 250.0f);
 
-// Timer for enemy spawning
-double lastEnemySpawnTime = 0.0;
-float enemySpawnInterval = 2.0f;
+// BARU: Pembangkitan angka acak untuk spawn Bintang
+std::uniform_int_distribution<> spawnYBintang(
+    0, SCREEN_HEIGHT - 30);  // Rentang lebih kecil untuk bintang
+std::uniform_real_distribution<> kecepatanBintang(
+    80.0f, 180.0f);  // Lebih lambat dari musuh
 
-// -- New Variables for player's firing rate
+// Timer untuk spawn musuh
+double waktuSpawnMusuhTerakhir = 0.0;
+float intervalSpawnMusuh = 2.0f;
 
-// Time since the last bullet was fired
-double lastShotTime = 0.0;
-// Seconds between shots (e.g., 0.15s for rapid fire)
-float playerFireRate = 0.15f;
+// BARU: Timer untuk spawn Bintang
+double waktuSpawnBintangTerakhir = 0.0;
+float intervalSpawnBintang = 5.0f;  // Spawn bintang setiap 5 detik
 
-// --- Function Prototypes (for main.cpp's responsibilities) ---
-void ResetGameplayElements();  // Resets only game-specific elements
+// -- Variabel Baru untuk laju tembak pemain
+
+// Waktu sejak peluru terakhir ditembakkan
+double waktuTembakTerakhir = 0.0;
+// Detik antara tembakan (misal: 0.15s untuk tembakan cepat)
+float lajuTembakPemain = 0.15f;
+
+// --- Prototipe Fungsi (untuk tanggung jawab main.cpp) ---
+void ResetElemenPermainan();  // Mengatur ulang hanya elemen khusus game
 
 int main() {
   //                                //
@@ -92,27 +112,25 @@ int main() {
 
   InisialisasiGameWindow();
 
-  Font customFont =
+  Font fontKustom =
       LoadFontEx("assets/fonts/JetBrainsMono-Regular.ttf", 20, 0, 0);
-  SetTextureFilter(customFont.texture, TEXTURE_FILTER_BILINEAR);
+  SetTextureFilter(fontKustom.texture, TEXTURE_FILTER_BILINEAR);
 
-  Font titleFont =
+  Font fontJudul =
       LoadFontEx("assets/fonts/JetBrainsMono-Regular.ttf", 30, 0, 0);
-  SetTextureFilter(titleFont.texture, TEXTURE_FILTER_BILINEAR);
+  SetTextureFilter(fontJudul.texture, TEXTURE_FILTER_BILINEAR);
 
-  // Load textures (better to do once)
-  backgroundTex = LoadTexture("assets/backgrounds/space_bg.png");
-  midgroundTex = LoadTexture("assets/backgrounds/stars_mid.png");
-  foregroundTex = LoadTexture("assets/backgrounds/stars_fore.png");
+  // Muat tekstur (lebih baik dilakukan sekali)
+  teksturLatarBelakang = LoadTexture("assets/background.png");
 
-  // Initialize player (initial state, will be reset on game start)
-  Player player;  // Player object remains in main or game manager
-  player.rect = {(float)SCREEN_WIDTH / 2 - 25, (float)SCREEN_HEIGHT / 2 - 25,
-                 50, 50};
-  player.color = BLUE;
+  // Inisialisasi pemain (status awal, akan diatur ulang saat game dimulai)
+  Pemain pemain;  // Objek pemain tetap di main atau manajer game
+  pemain.kotak = {(float)SCREEN_WIDTH / 2 - 25, (float)SCREEN_HEIGHT / 2 - 25,
+                  50, 50};
+  pemain.warna = BLUE;
 
-  // Initialize player data and load leaderboard
-  InitPlayerData();  // Call the function from player_data.cpp
+  // Inisialisasi data pemain dan muat leaderboard
+  InitPlayerData();  // Panggil fungsi dari player_data.cpp
 
   HideCursor();
   SetTargetFPS(60);
@@ -122,135 +140,176 @@ int main() {
   //                                //
 
   while (!WindowShouldClose()) {
-    float deltaTime = GetFrameTime();
-    framesCounter++;
+    float deltaWaktu = GetFrameTime();
+    hitunganBingkai++;
 
-    // --- State-based Logic ---
-    switch (currentGameState) {
-      case TITLE_SCREEN: {
+    // --- Logika Berdasarkan Status ---
+    switch (statusGameSaatIni) {
+      case LAYAR_JUDUL: {
         if (IsKeyPressed(KEY_ENTER) ||
             IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-          currentGameState = NAME_INPUT;
-          g_playerName = "";  // Clear name for new input
-          memset(g_nameBuffer, 0, sizeof(g_nameBuffer));  // Clear buffer
+          statusGameSaatIni = MASUKAN_NAMA;
+          g_namaPemain = "";  // Bersihkan nama untuk masukan baru
+          memset(g_bufferNama, 0, sizeof(g_bufferNama));  // Bersihkan buffer
         }
       } break;
 
-      case NAME_INPUT: {
-        int key = GetCharPressed();
-        while (key > 0) {
-          if ((key >= 32) && (key <= 125) && (strlen(g_nameBuffer) < 31)) {
-            g_nameBuffer[strlen(g_nameBuffer)] =
-                (char)key;  // Add character to buffer
+      case MASUKAN_NAMA: {
+        int kunci = GetCharPressed();
+        while (kunci > 0) {
+          if ((kunci >= 32) && (kunci <= 125) && (strlen(g_bufferNama) < 31)) {
+            g_bufferNama[strlen(g_bufferNama)] =
+                (char)kunci;  // Tambahkan karakter ke buffer
           }
-          key = GetCharPressed();
+          kunci = GetCharPressed();
         }
 
         if (IsKeyPressed(KEY_BACKSPACE)) {
-          if (strlen(g_nameBuffer) > 0) {
-            g_nameBuffer[strlen(g_nameBuffer) - 1] =
-                '\0';  // Remove last character
+          if (strlen(g_bufferNama) > 0) {
+            g_bufferNama[strlen(g_bufferNama) - 1] =
+                '\0';  // Hapus karakter terakhir
           }
         }
 
         if (IsKeyPressed(KEY_ENTER)) {
-          if (strlen(g_nameBuffer) > 0) {
-            g_playerName = std::string(g_nameBuffer);
-            ResetGameplayElements();  // Reset gameplay specific elements
-            currentGameState = GAMEPLAY;
+          if (strlen(g_bufferNama) > 0) {
+            g_namaPemain = std::string(g_bufferNama);
+            ResetElemenPermainan();  // Atur ulang elemen khusus permainan
+            statusGameSaatIni = PERMAINAN;
           }
         }
       } break;
 
-      case GAMEPLAY: {
-        Vector2 mousePosisi = GetMousePosition();
-        player.rect.x = mousePosisi.x - player.rect.width / 2;
-        player.rect.y = mousePosisi.y - player.rect.height / 2;
+      case PERMAINAN: {
+        Vector2 posisiMouse = GetMousePosition();
+        pemain.kotak.x = posisiMouse.x - pemain.kotak.width / 2;
+        pemain.kotak.y = posisiMouse.y - pemain.kotak.height / 2;
 
-        if (player.rect.x < 0) {
-          player.rect.x = 0;
+        if (pemain.kotak.x < 0) {
+          pemain.kotak.x = 0;
         };
-        if (player.rect.x + player.rect.width > SCREEN_WIDTH) {
-          player.rect.x = SCREEN_WIDTH - player.rect.width;
+        if (pemain.kotak.x + pemain.kotak.width > SCREEN_WIDTH) {
+          pemain.kotak.x = SCREEN_WIDTH - pemain.kotak.width;
         };
-        if (player.rect.y < 0) {
-          player.rect.y = 0;
+        if (pemain.kotak.y < 0) {
+          pemain.kotak.y = 0;
         };
-        if (player.rect.y + player.rect.height > SCREEN_HEIGHT) {
-          player.rect.y = SCREEN_HEIGHT - player.rect.height;
+        if (pemain.kotak.y + pemain.kotak.height > SCREEN_HEIGHT) {
+          pemain.kotak.y = SCREEN_HEIGHT - pemain.kotak.height;
         };
 
+        // BARU: Penembakan peluru dengan pemeriksaan jumlah peluru
         if (IsMouseButtonDown(MOUSE_LEFT_BUTTON) &&
-            (GetTime() - lastShotTime >= playerFireRate)) {
-          Bullet newBullet;
-          newBullet.rect = {player.rect.x + player.rect.width,
-                            player.rect.y + player.rect.height / 2 - 5, 20, 10};
-          newBullet.speed = 1000;
-          newBullet.color = RED;
-          newBullet.active = true;
-          playerBullets.push_back(newBullet);
+            (GetTime() - waktuTembakTerakhir >= lajuTembakPemain) &&
+            jumlahPeluruSaatIni > 0) {  // Periksa apakah peluru tersedia
+          Peluru peluruBaru;
+          peluruBaru.kotak = {pemain.kotak.x + pemain.kotak.width,
+                              pemain.kotak.y + pemain.kotak.height / 2 - 5, 20,
+                              10};
+          peluruBaru.kecepatan = 1000;
+          peluruBaru.warna = RED;
+          peluruBaru.aktif = true;
+          peluruPemain.push_back(peluruBaru);
 
-          lastShotTime = GetTime();
+          jumlahPeluruSaatIni--;  // Kurangi jumlah peluru
+          waktuTembakTerakhir = GetTime();
         }
 
-        for (auto& bullet : playerBullets) {
-          if (bullet.active) {
-            bullet.rect.x += bullet.speed * deltaTime;
-            if (bullet.rect.x > SCREEN_WIDTH) {
-              bullet.active = false;
+        for (auto& peluru : peluruPemain) {
+          if (peluru.aktif) {
+            peluru.kotak.x += peluru.kecepatan * deltaWaktu;
+            if (peluru.kotak.x > SCREEN_WIDTH) {
+              peluru.aktif = false;
             }
           }
         }
-        playerBullets.erase(
-            std::remove_if(playerBullets.begin(), playerBullets.end(),
-                           [](const Bullet& b) { return !b.active; }),
-            playerBullets.end());
+        peluruPemain.erase(
+            std::remove_if(peluruPemain.begin(), peluruPemain.end(),
+                           [](const Peluru& b) { return !b.aktif; }),
+            peluruPemain.end());
 
-        if (GetTime() - lastEnemySpawnTime > enemySpawnInterval) {
-          Enemy newEnemy;
-          newEnemy.rect = {(float)SCREEN_WIDTH, (float)enemySpawnY(gen), 50,
-                           50};
-          newEnemy.color = LIME;
-          newEnemy.speed = enemySpeed(gen);
-          newEnemy.health = 1;
-          newEnemy.active = true;
-          enemies.push_back(newEnemy);
-          lastEnemySpawnTime = GetTime();
-          enemySpawnInterval = GetRandomValue(50, 150) / 100.0f;
+        if (GetTime() - waktuSpawnMusuhTerakhir > intervalSpawnMusuh) {
+          Musuh musuhBaru;
+          musuhBaru.kotak = {(float)SCREEN_WIDTH, (float)spawnYMusuh(gen), 50,
+                             50};
+          musuhBaru.warna = LIME;
+          musuhBaru.kecepatan = kecepatanMusuh(gen);
+          musuhBaru.kesehatan = 1;
+          musuhBaru.aktif = true;
+          musuhMusuh.push_back(musuhBaru);
+          waktuSpawnMusuhTerakhir = GetTime();
+          intervalSpawnMusuh = GetRandomValue(50, 150) / 100.0f;
         }
 
-        for (auto& enemy : enemies) {
-          if (enemy.active) {
-            enemy.rect.x -= enemy.speed * deltaTime;
-            if (enemy.rect.x + enemy.rect.width < 0) {
-              enemy.active = false;
+        // BARU: Logika Spawn Bintang
+        if (GetTime() - waktuSpawnBintangTerakhir > intervalSpawnBintang) {
+          Bintang bintangBaru;
+          bintangBaru.kotak = {(float)SCREEN_WIDTH, (float)spawnYBintang(gen),
+                               20,  // Ukuran lebih kecil untuk bintang
+                               20};
+          bintangBaru.warna = YELLOW;  // Jadikan kuning
+          bintangBaru.kecepatan = kecepatanBintang(gen);
+          bintangBaru.aktif = true;
+          koleksiBintang.push_back(bintangBaru);
+          waktuSpawnBintangTerakhir = GetTime();
+          intervalSpawnBintang =
+              GetRandomValue(400, 700) / 100.0f;  // Acak interval
+        }
+
+        for (auto& musuh : musuhMusuh) {
+          if (musuh.aktif) {
+            musuh.kotak.x -= musuh.kecepatan * deltaWaktu;
+            if (musuh.kotak.x + musuh.kotak.width < 0) {
+              musuh.aktif = false;
             }
 
-            if (CheckCollisionRecs(player.rect, enemy.rect)) {
-              currentLives--;  // Use currentLives
-              enemy.active = false;
-              if (currentLives <= 0) {  // Check currentLives
+            if (CheckCollisionRecs(pemain.kotak, musuh.kotak)) {
+              nyawaSaatIni--;  // Gunakan nyawaSaatIni
+              musuh.aktif = false;
+              if (nyawaSaatIni <= 0) {  // Periksa nyawaSaatIni
                 AddScoreToLeaderboard(
-                    g_playerName,
-                    currentScore);  // Use g_playerName and currentScore
-                currentGameState = GAME_OVER;
+                    g_namaPemain,
+                    skorSaatIni);  // Gunakan g_namaPemain dan skorSaatIni
+                statusGameSaatIni = GAME_OVER;
               }
             }
           }
         }
-        enemies.erase(std::remove_if(enemies.begin(), enemies.end(),
-                                     [](const Enemy& e) { return !e.active; }),
-                      enemies.end());
+        musuhMusuh.erase(
+            std::remove_if(musuhMusuh.begin(), musuhMusuh.end(),
+                           [](const Musuh& e) { return !e.aktif; }),
+            musuhMusuh.end());
 
-        for (auto& bullet : playerBullets) {
-          if (bullet.active) {
-            for (auto& enemy : enemies) {
-              if (enemy.active && CheckCollisionRecs(bullet.rect, enemy.rect)) {
-                enemy.health--;
-                bullet.active = false;
-                if (enemy.health <= 0) {
-                  enemy.active = false;
-                  currentScore += 10;  // Use currentScore
+        // BARU: Pembaruan Bintang dan Tabrakan Pemain
+        for (auto& bintang : koleksiBintang) {
+          if (bintang.aktif) {
+            bintang.kotak.x -= bintang.kecepatan * deltaWaktu;
+            if (bintang.kotak.x + bintang.kotak.width < 0) {
+              bintang.aktif = false;  // Nonaktifkan jika di luar layar
+            }
+
+            // Periksa tabrakan dengan pemain
+            if (CheckCollisionRecs(pemain.kotak, bintang.kotak)) {
+              jumlahPeluruSaatIni += 5;  // Dapatkan 5 peluru per bintang
+              bintang.aktif = false;     // Nonaktifkan bintang yang terkumpul
+            }
+          }
+        }
+        koleksiBintang.erase(
+            std::remove_if(koleksiBintang.begin(), koleksiBintang.end(),
+                           [](const Bintang& b) { return !b.aktif; }),
+            koleksiBintang.end());
+
+        for (auto& peluru : peluruPemain) {
+          if (peluru.aktif) {
+            for (auto& musuh : musuhMusuh) {
+              if (musuh.aktif &&
+                  CheckCollisionRecs(peluru.kotak, musuh.kotak)) {
+                musuh.kesehatan--;
+                peluru.aktif = false;
+                if (musuh.kesehatan <= 0) {
+                  musuh.aktif = false;
+                  skorSaatIni += 10;  // Gunakan skorSaatIni
                 }
                 break;
               }
@@ -258,164 +317,173 @@ int main() {
           }
         }
 
-        scrollingBack -= 10.0f * deltaTime;
-        scrollingMid -= 20.0f * deltaTime;
-        scrollingFore -= 30.0f * deltaTime;
+        gulirBelakang -= 10.0f * deltaWaktu;
+        gulirTengah -= 20.0f * deltaWaktu;
+        gulirDepan -= 30.0f * deltaWaktu;
 
-        if (scrollingBack <= -backgroundTex.width) scrollingBack = 0;
-        if (scrollingMid <= -midgroundTex.width) scrollingMid = 0;
-        if (scrollingFore <= -foregroundTex.width) scrollingFore = 0;
+        if (gulirBelakang <= -teksturLatarBelakang.width) gulirBelakang = 0;
       } break;
 
       case GAME_OVER: {
         if (IsKeyPressed(KEY_ENTER) ||
             IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-          currentGameState = LEADERBOARD;
+          statusGameSaatIni = LEADERBOARD;
         }
       } break;
 
       case LEADERBOARD: {
         if (IsKeyPressed(KEY_ENTER) ||
             IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-          currentGameState = TITLE_SCREEN;
+          statusGameSaatIni = LAYAR_JUDUL;
         }
       } break;
     }
 
-    // --- Drawing ---
+    // --- Menggambar ---
     BeginDrawing();
     ClearBackground(RAYWHITE);
 
-    // Draw background regardless of state
-    DrawTextureEx(backgroundTex, (Vector2){scrollingBack, 0}, 0.0f, 1.0f,
+    // Gambar latar belakang terlepas dari status
+    DrawTextureEx(teksturLatarBelakang, (Vector2){gulirBelakang, 0}, 0.0f, 1.0f,
                   WHITE);
-    DrawTextureEx(backgroundTex,
-                  (Vector2){backgroundTex.width + scrollingBack, 0}, 0.0f, 1.0f,
-                  WHITE);
-    DrawTextureEx(midgroundTex, (Vector2){scrollingMid, 0}, 0.0f, 1.0f, WHITE);
-    DrawTextureEx(midgroundTex, (Vector2){midgroundTex.width + scrollingMid, 0},
+    DrawTextureEx(teksturLatarBelakang,
+                  (Vector2){teksturLatarBelakang.width + gulirBelakang, 0},
                   0.0f, 1.0f, WHITE);
-    DrawTextureEx(foregroundTex, (Vector2){scrollingFore, 0}, 0.0f, 1.0f,
-                  WHITE);
 
-    switch (currentGameState) {
-      case TITLE_SCREEN: {
-        const char* titleText = "PESAWAT SEDERHANA 2D";
-        const char* startText = "Press ENTER or CLICK to Start";
-        int titleWidth =
-            MeasureTextEx(titleFont, titleText, customFont.baseSize * 1.5, 2).x;
-        int startWidth =
-            MeasureTextEx(customFont, startText, customFont.baseSize, 2).x;
+    switch (statusGameSaatIni) {
+      case LAYAR_JUDUL: {
+        const char* teksJudul = "PESAWAT SEDERHANA 2D";
+        const char* teksMulai = "Tekan ENTER atau KLIK untuk Memulai";
+        int lebarJudul =
+            MeasureTextEx(fontJudul, teksJudul, fontKustom.baseSize * 1.5, 2).x;
+        int lebarMulai =
+            MeasureTextEx(fontKustom, teksMulai, fontKustom.baseSize, 2).x;
 
-        DrawTextEx(titleFont, titleText,
-                   Vector2{(float)SCREEN_WIDTH / 2 - titleWidth / 2,
+        DrawTextEx(fontJudul, teksJudul,
+                   Vector2{(float)SCREEN_WIDTH / 2 - lebarJudul / 2,
                            (float)SCREEN_HEIGHT / 2 - 50},
-                   customFont.baseSize * 1.5, 2, BLACK);
-        DrawTextEx(customFont, startText,
-                   Vector2{(float)SCREEN_WIDTH / 2 - startWidth / 2,
+                   fontKustom.baseSize * 1.5, 2, WHITE);
+        DrawTextEx(fontKustom, teksMulai,
+                   Vector2{(float)SCREEN_WIDTH / 2 - lebarMulai / 2,
                            (float)SCREEN_HEIGHT / 2 + 20},
-                   customFont.baseSize, 2, BLACK);
+                   fontKustom.baseSize, 2, WHITE);
       } break;
 
-      case NAME_INPUT: {
-        const char* promptText = "ENTER YOUR NAME:";
-        int promptWidth =
-            MeasureTextEx(customFont, promptText, customFont.baseSize, 2).x;
-        int nameBufferWidth =
-            MeasureTextEx(customFont, g_nameBuffer, customFont.baseSize, 2)
-                .x;  // Use g_nameBuffer
+      case MASUKAN_NAMA: {
+        const char* teksPrompt = "MASUKKAN NAMA ANDA:";
+        int lebarPrompt =
+            MeasureTextEx(fontKustom, teksPrompt, fontKustom.baseSize, 2).x;
+        int lebarBufferNama =
+            MeasureTextEx(fontKustom, g_bufferNama, fontKustom.baseSize, 2)
+                .x;  // Gunakan g_bufferNama
 
-        DrawTextEx(customFont, promptText,
-                   Vector2{(float)SCREEN_WIDTH / 2 - promptWidth / 2,
+        DrawTextEx(fontKustom, teksPrompt,
+                   Vector2{(float)SCREEN_WIDTH / 2 - lebarPrompt / 2,
                            (float)SCREEN_HEIGHT / 2 - 50},
-                   customFont.baseSize, 2, BLACK);
+                   fontKustom.baseSize, 2, WHITE);
         DrawRectangleLines(SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 2, 200, 40,
-                           BLACK);
-        DrawTextEx(customFont, g_nameBuffer,
-                   Vector2{(float)SCREEN_WIDTH / 2 - nameBufferWidth / 2,
+                           WHITE);
+        DrawTextEx(fontKustom, g_bufferNama,
+                   Vector2{(float)SCREEN_WIDTH / 2 - lebarBufferNama / 2,
                            (float)SCREEN_HEIGHT / 2 + 10},
-                   customFont.baseSize, 2, BLACK);
+                   fontKustom.baseSize, 2, WHITE);
 
-        if (((framesCounter / 30) % 2) == 0) {
-          DrawTextEx(customFont, "_",
-                     Vector2{(float)SCREEN_WIDTH / 2 - nameBufferWidth / 2 +
-                                 nameBufferWidth,
+        if (((hitunganBingkai / 30) % 2) == 0) {
+          DrawTextEx(fontKustom, "_",
+                     Vector2{(float)SCREEN_WIDTH / 2 - lebarBufferNama / 2 +
+                                 lebarBufferNama,
                              (float)SCREEN_HEIGHT / 2 + 10},
-                     customFont.baseSize, 2, BLACK);
+                     fontKustom.baseSize, 2, WHITE);
         }
       } break;
 
-      case GAMEPLAY: {
-        DrawRectangleRec(player.rect, player.color);
+      case PERMAINAN: {
+        DrawRectangleRec(pemain.kotak, pemain.warna);
 
-        for (const auto& bullet : playerBullets) {
-          if (bullet.active) {
-            DrawRectangleRec(bullet.rect, bullet.color);
+        for (const auto& peluru : peluruPemain) {
+          if (peluru.aktif) {
+            DrawRectangleRec(peluru.kotak, peluru.warna);
           }
         }
 
-        for (const auto& enemy : enemies) {
-          if (enemy.active) {
-            DrawRectangleRec(enemy.rect, enemy.color);
+        for (const auto& musuh : musuhMusuh) {
+          if (musuh.aktif) {
+            DrawRectangleRec(musuh.kotak, musuh.warna);
           }
         }
 
-        DrawTextEx(customFont, TextFormat("Score: %i", currentScore),
-                   Vector2{10, 10},  // Use currentScore
-                   customFont.baseSize, 2, BLACK);
-        DrawTextEx(customFont, TextFormat("Lives: %i", currentLives),
-                   Vector2{10, 40},  // Use currentLives
-                   customFont.baseSize, 2, BLACK);
+        // BARU: Gambar koleksi Bintang
+        for (const auto& bintang : koleksiBintang) {
+          if (bintang.aktif) {
+            // Anda bisa menggambar bentuk atau tekstur berbeda untuk bintang
+            // Untuk saat ini, kita gambar persegi panjang kecil berwarna kuning
+            DrawRectangleRec(bintang.kotak, bintang.warna);
+          }
+        }
+
+        DrawTextEx(fontKustom, TextFormat("Skor: %i", skorSaatIni),
+                   Vector2{10, 10},  // Gunakan skorSaatIni
+                   fontKustom.baseSize, 2, WHITE);
+        DrawTextEx(fontKustom, TextFormat("Nyawa: %i", nyawaSaatIni),
+                   Vector2{10, 40},  // Gunakan nyawaSaatIni
+                   fontKustom.baseSize, 2, WHITE);
+        DrawTextEx(
+            fontKustom,
+            TextFormat("Peluru: %i",
+                       jumlahPeluruSaatIni),  // BARU: Tampilkan jumlah peluru
+            Vector2{10, 70}, fontKustom.baseSize, 2, WHITE);
         DrawFPS(SCREEN_WIDTH - 100, 10);
       } break;
 
       case GAME_OVER: {
-        const char* gameOverText = "GAME OVER!";
-        const char* scoreText =
-            TextFormat("YOUR SCORE: %i", currentScore);  // Use currentScore
-        const char* continueText = "Press ENTER or CLICK to see Leaderboard";
-        int gameOverWidth = MeasureTextEx(customFont, gameOverText,
-                                          customFont.baseSize * 1.5, 2)
+        const char* teksGameOver = "GAME OVER!";
+        const char* teksSkor =
+            TextFormat("SKOR ANDA: %i", skorSaatIni);  // Gunakan skorSaatIni
+        const char* teksLanjutkan =
+            "Tekan ENTER atau KLIK untuk melihat Leaderboard";
+        int lebarGameOver = MeasureTextEx(fontKustom, teksGameOver,
+                                          fontKustom.baseSize * 1.5, 2)
                                 .x;
-        int scoreWidth =
-            MeasureTextEx(customFont, scoreText, customFont.baseSize, 2).x;
-        int continueWidth = MeasureTextEx(customFont, continueText,
-                                          customFont.baseSize * 0.8, 2)
-                                .x;
+        int lebarSkor =
+            MeasureTextEx(fontKustom, teksSkor, fontKustom.baseSize, 2).x;
+        int lebarLanjutkan = MeasureTextEx(fontKustom, teksLanjutkan,
+                                           fontKustom.baseSize * 0.8, 2)
+                                 .x;
 
-        DrawTextEx(titleFont, gameOverText,
-                   Vector2{(float)SCREEN_WIDTH / 2 - gameOverWidth / 2,
+        DrawTextEx(fontJudul, teksGameOver,
+                   Vector2{(float)SCREEN_WIDTH / 2 - lebarGameOver / 2,
                            (float)SCREEN_HEIGHT / 2 - 70},
-                   customFont.baseSize * 1.5, 2, BLACK);
-        DrawTextEx(customFont, scoreText,
-                   Vector2{(float)SCREEN_WIDTH / 2 - scoreWidth / 2,
+                   fontKustom.baseSize * 1.5, 2, WHITE);
+        DrawTextEx(fontKustom, teksSkor,
+                   Vector2{(float)SCREEN_WIDTH / 2 - lebarSkor / 2,
                            (float)SCREEN_HEIGHT / 2},
-                   customFont.baseSize, 2, BLACK);
-        DrawTextEx(customFont, continueText,
-                   Vector2{(float)SCREEN_WIDTH / 2 - continueWidth / 2,
+                   fontKustom.baseSize, 2, WHITE);
+        DrawTextEx(fontKustom, teksLanjutkan,
+                   Vector2{(float)SCREEN_WIDTH / 2 - lebarLanjutkan / 2,
                            (float)SCREEN_HEIGHT / 2 + 50},
-                   customFont.baseSize * 0.8, 2, BLACK);
+                   fontKustom.baseSize * 0.8, 2, WHITE);
       } break;
 
       case LEADERBOARD: {
-        const char* leaderboardTitle = "LEADERBOARD";
-        int titleWidth = MeasureTextEx(customFont, leaderboardTitle,
-                                       customFont.baseSize * 1.5, 2)
+        const char* judulLeaderboard = "LEADERBOARD";
+        int lebarJudul = MeasureTextEx(fontKustom, judulLeaderboard,
+                                       fontKustom.baseSize * 1.5, 2)
                              .x;
-        DrawTextEx(titleFont, leaderboardTitle,
-                   Vector2{(float)SCREEN_WIDTH / 2 - titleWidth / 2, 30},
-                   customFont.baseSize * 1.5, 2, BLACK);
+        DrawTextEx(fontJudul, judulLeaderboard,
+                   Vector2{(float)SCREEN_WIDTH / 2 - lebarJudul / 2, 30},
+                   fontKustom.baseSize * 1.5, 2, WHITE);
 
-        DrawLeaderboard(customFont, customFont.baseSize, BLACK, SCREEN_WIDTH,
-                        SCREEN_HEIGHT);  // Pass screen dimensions
+        DrawLeaderboard(fontKustom, fontKustom.baseSize, WHITE, SCREEN_WIDTH,
+                        SCREEN_HEIGHT);  // Lewatkan dimensi layar
 
-        const char* backText = "Press ENTER or CLICK to Main Menu";
-        int backWidth =
-            MeasureTextEx(customFont, backText, customFont.baseSize * 0.8, 2).x;
-        DrawTextEx(customFont, backText,
-                   Vector2{(float)SCREEN_WIDTH / 2 - backWidth / 2,
+        const char* teksKembali = "Tekan ENTER atau KLIK untuk ke Menu Utama";
+        int lebarKembali =
+            MeasureTextEx(fontKustom, teksKembali, fontKustom.baseSize * 0.8, 2)
+                .x;
+        DrawTextEx(fontKustom, teksKembali,
+                   Vector2{(float)SCREEN_WIDTH / 2 - lebarKembali / 2,
                            (float)SCREEN_HEIGHT - 50},
-                   customFont.baseSize * 0.8, 2, BLACK);
+                   fontKustom.baseSize * 0.8, 2, WHITE);
       } break;
     }
 
@@ -423,25 +491,28 @@ int main() {
   }
 
   //                                //
-  // 5. De-Initialization           //
+  // 5. De-Inisialisasi             //
   //                                //
 
-  UnloadTexture(backgroundTex);
-  UnloadTexture(midgroundTex);
-  UnloadTexture(foregroundTex);
-  UnloadFont(customFont);
-  UnloadFont(titleFont);
+  UnloadTexture(teksturLatarBelakang);
+  UnloadFont(fontKustom);
+  UnloadFont(fontJudul);
   CloseWindow();
   return 0;
 }
 
-// --- Function Definitions for main.cpp ---
-void ResetGameplayElements() {
-  currentScore = 0;
-  currentLives = 1;
-  playerBullets.clear();
-  enemies.clear();
-  // Reset enemy spawning timer as well for a fresh start
-  lastEnemySpawnTime = GetTime();
-  enemySpawnInterval = 2.0f;
+// --- Definisi Fungsi untuk main.cpp ---
+void ResetElemenPermainan() {
+  skorSaatIni = 0;
+  nyawaSaatIni = 1;
+  jumlahPeluruSaatIni = 50;  // BARU: Atur ulang peluru
+  peluruPemain.clear();
+  musuhMusuh.clear();
+  koleksiBintang.clear();  // BARU: Bersihkan bintang saat reset
+  // Atur ulang timer spawn musuh juga untuk permulaan yang baru
+  waktuSpawnMusuhTerakhir = GetTime();
+  intervalSpawnMusuh = 2.0f;
+  waktuSpawnBintangTerakhir =
+      GetTime();                // BARU: Atur ulang timer spawn bintang
+  intervalSpawnBintang = 5.0f;  // BARU: Atur ulang interval spawn bintang
 }

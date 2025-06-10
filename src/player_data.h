@@ -3,32 +3,34 @@
 
 #include <raylib.h>
 
-#include <algorithm>  // For std::sort
+#include <algorithm>  // Untuk std::sort
 #include <string>
 #include <vector>
 
-// Leaderboard Entry Structure
-struct LeaderboardEntry {
-  std::string name;
-  int score;
+// Struktur Entri Leaderboard
+struct EntriLeaderboard {
+  std::string nama;
+  int skor;
 
-  // For sorting (descending score)
-  bool operator>(const LeaderboardEntry& other) const {
-    return score > other.score;
+  // Untuk pengurutan (skor menurun)
+  bool operator>(const EntriLeaderboard& other) const {
+    return skor > other.skor;
   }
 };
 
-// Global variables (or you can pass them around)
-extern std::string g_playerName;
-extern char g_nameBuffer[32];
-extern std::vector<LeaderboardEntry> g_leaderboard;
-extern const std::string LEADERBOARD_FILE;
+// Variabel global (atau Anda bisa melewatkannya)
+extern std::string g_namaPemain;  // g_playerName -> g_namaPemain
+extern char g_bufferNama[32];     // g_nameBuffer -> g_bufferNama
+extern std::vector<EntriLeaderboard> g_leaderboard;
+extern const std::string
+    FILE_LEADERBOARD;  // LEADERBOARD_FILE -> FILE_LEADERBOARD
 
-// Function Prototypes
-void InitPlayerData();  // For initial setup like loading leaderboard
+// Prototipe Fungsi
+void InitPlayerData();  // Untuk pengaturan awal seperti memuat leaderboard
 void SaveLeaderboard();
 void LoadLeaderboard();
-void AddScoreToLeaderboard(const std::string& name, int score);
+void AddScoreToLeaderboard(const std::string& nama,
+                           int skor);  // name -> nama, score -> skor
 void DrawLeaderboard(Font font, int fontSize, Color textColor, int screenWidth,
                      int screenHeight);
 
