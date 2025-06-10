@@ -55,7 +55,7 @@ struct Bintang {
 GameState statusGameSaatIni = LAYAR_JUDUL;
 int skorSaatIni = 0;
 int nyawaSaatIni = 1;
-int jumlahPeluruSaatIni = 50;
+int jumlahPeluruSaatIni = 20;
 
 // Untuk kursor berkedip (tetap di main untuk kesederhanaan karena ini spesifik
 // UI)
@@ -344,10 +344,12 @@ int main() {
     BeginDrawing();
     ClearBackground(RAYWHITE);
 
-    DrawTextureEx(teksturLatarBelakang, (Vector2){gulirBelakang, 0}, 0.0f, 1.0f,
-                  WHITE);
     DrawTextureEx(teksturLatarBelakang,
-                  (Vector2){teksturLatarBelakang.width + gulirBelakang, 0},
+                  // Change to C++ initializer list for Vector2
+                  Vector2{gulirBelakang, 0.0f}, 0.0f, 1.0f, WHITE);
+    DrawTextureEx(teksturLatarBelakang,
+                  // Change to C++ initializer list for Vector2
+                  Vector2{teksturLatarBelakang.width + gulirBelakang, 0.0f},
                   0.0f, 1.0f, WHITE);
 
     switch (statusGameSaatIni) {
@@ -398,31 +400,36 @@ int main() {
 
       case PERMAINAN: {
         DrawTextureRec(teksturPemain,
-                       (Rectangle){0, 0, (float)teksturPemain.width,
-                                   (float)teksturPemain.height},
-                       (Vector2){pemain.kotak.x, pemain.kotak.y}, WHITE);
+                       // Change to C++ initializer list for Rectangle
+                       Rectangle{0.0f, 0.0f, (float)teksturPemain.width,
+                                 (float)teksturPemain.height},
+                       // Change to C++ initializer list for Vector2
+                       Vector2{pemain.kotak.x, pemain.kotak.y}, WHITE);
 
         for (const auto& peluru : peluruPemain) {
           if (peluru.aktif) {
             DrawTextureRec(teksturPeluru,
-                           (Rectangle){0, 0, (float)teksturPeluru.width,
-                                       (float)teksturPeluru.height},
-                           (Vector2){peluru.kotak.x, peluru.kotak.y}, WHITE);
+                           // Change to C++ initializer list for Rectangle
+                           Rectangle{0.0f, 0.0f, (float)teksturPeluru.width,
+                                     (float)teksturPeluru.height},
+                           // Change to C++ initializer list for Vector2
+                           Vector2{peluru.kotak.x, peluru.kotak.y}, WHITE);
           }
         }
 
         for (const auto& musuh : musuhMusuh) {
           if (musuh.aktif) {
-            // BARU: Gambar musuh menggunakan tekstur dari array berdasarkan
-            // indeksTekstur Pastikan indeksTekstur valid sebelum mengakses
             if (musuh.indeksTekstur >= 0 &&
                 musuh.indeksTekstur < teksturMusuhArray.size()) {
               DrawTextureRec(
                   teksturMusuhArray[musuh.indeksTekstur],
-                  (Rectangle){
-                      0, 0, (float)teksturMusuhArray[musuh.indeksTekstur].width,
+                  // UBAH BARIS INI: Gunakan sintaks konstruktor C++
+                  Rectangle{
+                      0.0f, 0.0f,
+                      (float)teksturMusuhArray[musuh.indeksTekstur].width,
                       (float)teksturMusuhArray[musuh.indeksTekstur].height},
-                  (Vector2){musuh.kotak.x, musuh.kotak.y}, WHITE);
+                  // UBAH BARIS INI: Gunakan sintaks konstruktor C++
+                  Vector2{musuh.kotak.x, musuh.kotak.y}, WHITE);
             }
           }
         }
@@ -430,9 +437,11 @@ int main() {
         for (const auto& bintang : koleksiBintang) {
           if (bintang.aktif) {
             DrawTextureRec(teksturBintang,
-                           (Rectangle){0, 0, (float)teksturBintang.width,
-                                       (float)teksturBintang.height},
-                           (Vector2){bintang.kotak.x, bintang.kotak.y}, WHITE);
+                           // Change to C++ initializer list for Rectangle
+                           Rectangle{0.0f, 0.0f, (float)teksturBintang.width,
+                                     (float)teksturBintang.height},
+                           // Change to C++ initializer list for Vector2
+                           Vector2{bintang.kotak.x, bintang.kotak.y}, WHITE);
           }
         }
 
@@ -518,7 +527,7 @@ int main() {
 void ResetElemenPermainan() {
   skorSaatIni = 0;
   nyawaSaatIni = 1;
-  jumlahPeluruSaatIni = 50;
+  jumlahPeluruSaatIni = 20;
   peluruPemain.clear();
   musuhMusuh.clear();
   koleksiBintang.clear();

@@ -11,12 +11,20 @@ set(SOURCE_FILES
   src/player_data.cpp
 )
 
+# SQLITE DIR
+set(SQLITE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/sqlite3)
+include_directories(${SQLITE_DIR})
+add_library(sqlite STATIC ${SQLITE_DIR}/sqlite3.c)
+
+# RAYLIB DIR
 set(RAYLIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/raylib)
 include_directories(${RAYLIB_DIR}/include)
+
 
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 target_link_libraries(${PROJECT_NAME}
   ${RAYLIB_DIR}/lib/libraylib.a
+  sqlite
   -lopengl32
   -lgdi32
   -lwinmm
