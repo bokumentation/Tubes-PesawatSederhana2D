@@ -1,9 +1,9 @@
 #include <raylib.h>  // Mengimpor library raylib
 
 #include <algorithm>  // Untuk std::remove_if
-#include <cstring>    // Untuk memset dan strlen
-#include <random>     // Untuk spawn musuh acak
-#include <vector>     // Untuk menyimpan peluru dan musuh
+#include <cstring>  // Untuk memset:memset digunakan untuk mengisi blok memori dengan nilai tertentu. dan strlen: strlen: digunakan untuk menghitung panjang string (jumlah karakter)
+#include <random>   // Untuk spawn musuh acak
+#include <vector>   // Untuk menyimpan peluru dan musuh
 
 #include "database.h"     // Header database untuk menutup koneksi dan enum
 #include "player_data.h"  // Data pemain dan leaderboard
