@@ -21,7 +21,6 @@ add_library(sqlite STATIC ${SQLITE_DIR}/sqlite3.c)
 set(RAYLIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/raylib)
 include_directories(${RAYLIB_DIR}/include)
 
-
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 target_link_libraries(${PROJECT_NAME}
   ${RAYLIB_DIR}/lib/libraylib.a
