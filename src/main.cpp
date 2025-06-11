@@ -55,7 +55,7 @@ struct Bintang {
 GameState statusGameSaatIni = LAYAR_JUDUL;
 int skorSaatIni = 0;
 int nyawaSaatIni = 1;
-int jumlahPeluruSaatIni = 50;  // Initial bullets
+int jumlahPeluruSaatIni = 3;  // Initial bullets
 
 // Untuk kursor berkedip (tetap di main untuk kesederhanaan karena ini spesifik
 // UI)
@@ -144,7 +144,6 @@ int main() {
 
   InitPlayerData();  // This will now also initialize the database
 
-  HideCursor();
   SetTargetFPS(60);
 
   while (!WindowShouldClose()) {
@@ -197,6 +196,7 @@ int main() {
             g_namaPemain = std::string(g_bufferNama);
             ResetElemenPermainan();         // Reset elemen game.
             statusGameSaatIni = PERMAINAN;  // Ubah status ke PERMAINAN.
+            HideCursor();
           }
         }
       } break;
@@ -313,7 +313,7 @@ int main() {
               bintang.aktif = false;  // Nonaktifkan bintang jika keluar layar.
             }
             if (CheckCollisionRecs(pemain.kotak, bintang.kotak)) {
-              jumlahPeluruSaatIni += 5;  // Pemain mendapatkan 5 peluru.
+              jumlahPeluruSaatIni += 2;  // Pemain mendapatkan 5 peluru.
               bintang.aktif = false;     // Nonaktifkan bintang yang terkumpul.
             }
           }
@@ -428,13 +428,13 @@ int main() {
         }
 
         // KEMBALI KE MENU button logic
-        Rectangle tombolKembaliKeMenu = {(float)SCREEN_WIDTH / 2 - 100,
-                                         (float)SCREEN_HEIGHT - 30, 200,
+        Rectangle tombolKembaliKeMenu = {(float)SCREEN_WIDTH / 2 - 380,
+                                         (float)SCREEN_HEIGHT - 40, 200,
                                          25};  // Defining for click detection
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
           if (CheckCollisionPointRec(GetMousePosition(), tombolKembaliKeMenu)) {
             statusGameSaatIni = LAYAR_JUDUL;
-            HideCursor();  // Hide cursor when leaving LEADERBOARD
+            ShowCursor();  // Hide cursor when leaving LEADERBOARD
           }
         }
         // Original key press for returning (SPACE or Right-Click) - keep as
@@ -491,10 +491,10 @@ int main() {
             MeasureTextEx(fontKustom, teksMulai, fontKustom.baseSize * 1.2f, 2)
                 .x;
         DrawTextEx(fontKustom, teksMulai,
-                   (Vector2){tombolMulai.x + tombolMulai.width / 2.0f -
-                                 lebarTeksMulai / 2.0f,
-                             tombolMulai.y + tombolMulai.height / 2.0f -
-                                 fontKustom.baseSize * 0.6f},
+                   Vector2{tombolMulai.x + tombolMulai.width / 2.0f -
+                               lebarTeksMulai / 2.0f,
+                           tombolMulai.y + tombolMulai.height / 2.0f -
+                               fontKustom.baseSize * 0.6f},
                    fontKustom.baseSize * 1.2f, 2, WHITE);
 
         // Draw Exit instruction
@@ -670,17 +670,6 @@ int main() {
         DrawLeaderboard(fontKustom, fontKustom.baseSize, WHITE, SCREEN_WIDTH,
                         SCREEN_HEIGHT);
 
-        // Draw sorting options (keyboard prompts - can be removed if buttons
-        // are primary)
-        const char* sortScoreText = "Tekan 'S' untuk Urutkan berdasarkan Skor";
-        const char* sortNameText = "Tekan 'N' untuk Urutkan berdasarkan Nama";
-        DrawTextEx(fontKustom, sortScoreText,
-                   Vector2{10.0f, SCREEN_HEIGHT - 120.0f},
-                   fontKustom.baseSize * 0.8f, 2, YELLOW);
-        DrawTextEx(fontKustom, sortNameText,
-                   Vector2{10.0f, SCREEN_HEIGHT - 100.0f},
-                   fontKustom.baseSize * 0.8f, 2, YELLOW);
-
         // Draw search input box and prompt
         const char* searchPrompt = "CARI NAMA (ENTER untuk mencari/TOP 10):";
         int searchPromptWidth = MeasureTextEx(fontKustom, searchPrompt,
@@ -688,7 +677,7 @@ int main() {
                                     .x;
         DrawTextEx(fontKustom, searchPrompt,
                    Vector2{(float)SCREEN_WIDTH / 2 - searchPromptWidth / 2,
-                           (float)SCREEN_HEIGHT - 70},
+                           (float)SCREEN_HEIGHT - 380},
                    fontKustom.baseSize * 0.8f, 2, WHITE);
         // You had DrawRectangleLines commented out, I'm assuming you want to
         // keep it that way for the input box visuals.
@@ -723,7 +712,7 @@ int main() {
 
         // KEMBALI KE MENU button drawing
         Rectangle tombolKembaliKeMenu = {
-            (float)SCREEN_WIDTH / 2 - 100, (float)SCREEN_HEIGHT - 15, 200,
+            (float)SCREEN_WIDTH / 2 - 380, (float)SCREEN_HEIGHT - 40, 200,
             25};  // Adjusted Y position to be lower
         Color warnaTombolKembali =
             (CheckCollisionPointRec(GetMousePosition(), tombolKembaliKeMenu))
@@ -737,11 +726,10 @@ int main() {
                                    .x;
         DrawTextEx(
             fontKustom, teksKembali,
-            (Vector2){tombolKembaliKeMenu.x + tombolKembaliKeMenu.width / 2.0f -
-                          lebarTeksKembali / 2.0f,
-                      tombolKembaliKeMenu.y +
-                          tombolKembaliKeMenu.height / 2.0f -
-                          fontKustom.baseSize * 0.4f},
+            Vector2{tombolKembaliKeMenu.x + tombolKembaliKeMenu.width / 2.0f -
+                        lebarTeksKembali / 2.0f,
+                    tombolKembaliKeMenu.y + tombolKembaliKeMenu.height / 2.0f -
+                        fontKustom.baseSize * 0.4f},
             fontKustom.baseSize * 0.8f, 2, WHITE);
 
       } break;
@@ -769,7 +757,7 @@ int main() {
 void ResetElemenPermainan() {
   skorSaatIni = 0;
   nyawaSaatIni = 1;
-  jumlahPeluruSaatIni = 50;
+  jumlahPeluruSaatIni = 3;
   peluruPemain.clear();
   musuhMusuh.clear();
   koleksiBintang.clear();
