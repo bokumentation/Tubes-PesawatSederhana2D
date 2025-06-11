@@ -21,13 +21,30 @@ void AddScoreToLeaderboard(const std::string& nama, int skor) {
       10, SORT_BY_SCORE_DESC);  // Refresh with top scores after adding
 }
 
-// Modified: Now takes a sort order
+/**
+ * @brief Memperbarui data leaderboard yang ditampilkan dari database.
+ *
+ * Fungsi ini memuat entri leaderboard dari database berdasarkan batas
+ * dan urutan pengurutan yang ditentukan, lalu menyimpannya ke g_leaderboard.
+ *
+ * @param limit Jumlah entri yang akan dimuat.
+ * @param order Urutan pengurutan (SORT_BY_SCORE_DESC atau SORT_BY_NAME_ASC).
+ */
 void UpdateLeaderboardDisplay(int limit, LeaderboardSortOrder order) {
   g_leaderboard = GetLeaderboardEntries(limit, order);
   TraceLog(LOG_INFO, "LEADERBOARD: Data leaderboard diperbarui dari database.");
 }
 
-// Modified: Now takes a sort order
+/**
+ * @brief Mencari dan menampilkan entri leaderboard berdasarkan istilah
+ * pencarian.
+ *
+ * Fungsi ini memuat entri dari database yang namanya cocok dengan 'searchTerm'
+ * (sebagian atau seluruhnya) dan mengurutkan hasilnya.
+ *
+ * @param searchTerm String yang akan digunakan untuk mencari nama pemain.
+ * @param order Urutan pengurutan hasil.
+ */
 void SearchAndDisplayLeaderboard(const std::string& searchTerm,
                                  LeaderboardSortOrder order) {
   g_leaderboard = SearchScores(searchTerm, order);

@@ -1,3 +1,11 @@
+/**
+ * @file database.cpp
+ * @brief Implementasi fungsi-fungsi untuk interaksi dengan database SQLite.
+ *
+ * File ini berisi definisi fungsi untuk mengelola koneksi database,
+ * menyisipkan skor, serta mengambil dan mencari entri leaderboard.
+ */
+
 #include "database.h"
 
 #include <raylib.h>
@@ -8,8 +16,29 @@
 
 #include "player_data.h"
 
+// JANGAN DIOTAK-ATIK! bahkan diriku nda paham kode ini - ibe
+
+// Variabel koneksi database SQLite.
+// static di sini berarti variabel ini hanya terlihat di dalam file
+// database.cpp.
 static sqlite3* db = nullptr;
 
+/**
+ * @brief Fungsi callback yang dipanggil oleh SQLite untuk setiap baris hasil
+ * SELECT.
+ *
+ * Fungsi ini memproses satu baris data dari hasil query SQL, mengonversi nilai
+ * kolom "nama" dan "skor" menjadi format EntriLeaderboard, dan menambahkannya
+ * ke vektor hasil yang disediakan.
+ *
+ * @param data Pointer void* ke data yang diberikan oleh sqlite3_exec,
+ * yang di-cast ke std::vector<EntriLeaderboard>* untuk menyimpan hasil.
+ * @param argc Jumlah kolom dalam baris hasil saat ini.
+ * @param argv Array of strings (char**) yang berisi nilai-nilai kolom.
+ * @param azColName Array of strings (char**) yang berisi nama-nama kolom.
+ * @return Mengembalikan 0 untuk melanjutkan pemrosesan baris berikutnya.
+ * Jika mengembalikan nilai bukan nol, sqlite3_exec akan berhenti.
+ */
 static int callback(void* data, int argc, char** argv, char** azColName) {
   std::vector<EntriLeaderboard>* results =
       static_cast<std::vector<EntriLeaderboard>*>(data);
@@ -99,7 +128,6 @@ void InsertScore(const std::string& nama, int skor) {
   }
 }
 
-// Renamed from GetTopScores to be more generic for sorting
 std::vector<EntriLeaderboard> GetLeaderboardEntries(
     int limit, LeaderboardSortOrder order) {
   std::vector<EntriLeaderboard> scores;
@@ -136,7 +164,6 @@ std::vector<EntriLeaderboard> GetLeaderboardEntries(
   return scores;
 }
 
-// Modified SearchScores to accept a sort order
 std::vector<EntriLeaderboard> SearchScores(const std::string& searchTerm,
                                            LeaderboardSortOrder order) {
   std::vector<EntriLeaderboard> scores;

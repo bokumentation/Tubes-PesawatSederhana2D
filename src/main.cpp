@@ -1,41 +1,58 @@
-/*
-STANDARISASI
-Gunakan Google C++ Style Guide
-Spaces: 2
-
-CARA BUILD PROGRAM
-
-cmake -S . -B build -G "MinGW Makefiles"
-cmake --build build
-*/
-
 #include <raylib.h>  // Mengimpor library raylib
 
 #include <algorithm>  // Untuk std::remove_if
-#include <cstring>    //
+#include <cstring>    // Untuk memset dan strlen
 #include <random>     // Untuk spawn musuh acak
 #include <vector>     // Untuk menyimpan peluru dan musuh
 
-#include "database.h"  // Sertakan header database untuk menutup koneksi dan enum
-#include "player_data.h"  // Sertakan data pemain dan leaderboard
+#include "database.h"     // Header database untuk menutup koneksi dan enum
+#include "player_data.h"  // Data pemain dan leaderboard
 #include "window.h"       // Header untuk InisialisasiGameWindow()
 
+/**
+ * @file main.cpp
+ * @brief File utama untuk logika game 'Pesawat Sederhana 2D'.
+ *
+ * File ini mengelola alur permainan utama, status game, entitas game (pemain,
+ * peluru, musuh, bintang), deteksi tabrakan, dan interaksi UI untuk menu
+ * judul, input nama, dan leaderboard.
+ */
+
 // --- Status Game ---
-enum GameState { LAYAR_JUDUL, MASUKAN_NAMA, PERMAINAN, GAME_OVER, LEADERBOARD };
+/**
+ * @brief Enum yang mendefinisikan status game yang berbeda.
+ */
+enum GameState {
+  LAYAR_JUDUL,   // Layar awal game sebelum memulai permainan.
+  MASUKAN_NAMA,  // Layar untuk memasukkan nama pemain.
+  PERMAINAN,     // Status gameplay utama.
+  GAME_OVER,     // Layar yang ditampilkan setelah pemain kalah.
+  LEADERBOARD    // Layar yang menampilkan daftar skor tertinggi.
+};
 
 // --- Struktur Pemain ---
+/**
+ * @brief Struktur yang merepresentasikan pemain.
+ */
 struct Pemain {
-  Rectangle kotak;
+  Rectangle kotak;  // Kotak tabrakan dan posisi pemain.
 };
 
 // --- Struktur Peluru ---
+/**
+ * @brief Struktur yang merepresentasikan peluru yang ditembakkan oleh pemain.
+ */
 struct Peluru {
-  Rectangle kotak;
-  float kecepatan;
-  bool aktif;
+  Rectangle kotak;  // Kotak tabrakan dan posisi peluru.
+  float kecepatan;  // kecepatan gerak peluru.
+  bool aktif;  // status keaktidan peluru (true jike aktif, false jika perlu
+               // dihapus).
 };
 
 // --- Struktur Musuh ---
+/**
+ * @brief Struktur yang merepresentasikan musuh.
+ */
 struct Musuh {
   Rectangle kotak;
   int indeksTekstur;
@@ -45,6 +62,9 @@ struct Musuh {
 };
 
 // -- Struktur Bintang --
+/**
+ * @brief Struktur yang merepresentasikan item bonus bintang.
+ */
 struct Bintang {
   Rectangle kotak;
   float kecepatan;
@@ -52,59 +72,186 @@ struct Bintang {
 };
 
 // --- Variabel Status Game Global ---
+/**
+ * @brief Variabel global yang menunjukkan status game saat ini.
+ */
 GameState statusGameSaatIni = LAYAR_JUDUL;
+
+/**
+ * @brief Skor pemain saat ini dalam permainan.
+ */
 int skorSaatIni = 0;
+
+/**
+ * @brief Nyawa pemain saat ini dalam permainan.
+ */
 int nyawaSaatIni = 1;
+
+/**
+ * @brief Jumlah peluru yang dimiliki pemain saat ini.
+ */
 int jumlahPeluruSaatIni = 3;  // Initial bullets
 
-// Untuk kursor berkedip (tetap di main untuk kesederhanaan karena ini spesifik
-// UI)
+/**
+ * @brief Penghitung bingkai untuk efek kursor berkedip.
+ */
 int hitunganBingkai = 0;
 
 // Leaderboard search/sort variables
+/**
+ * @brief Flag yang menunjukkan apakah hasil pencarian sedang ditampilkan di
+ * leaderboard.
+ */
 bool showingSearchResults = false;
+
+/**
+ * @brief Buffer karakter untuk input pencarian di leaderboard.
+ */
 char searchBuffer[32] = "\0";
+
+/**
+ * @brief Penghitung bingkai untuk kursor berkedip di input pencarian
+ * leaderboard.
+ */
 int searchFramesCounter = 0;
 
 // BARU: Variabel untuk menyimpan urutan sorting saat ini
+/**
+ * @brief Variabel global yang menyimpan urutan pengurutan leaderboard saat ini.
+ */
 LeaderboardSortOrder currentSortOrder = SORT_BY_SCORE_DESC;
 
 // --- Gameplay-specific variables ---
+/**
+ * @brief Vektor yang menyimpan semua objek peluru yang aktif.
+ */
 std::vector<Peluru> peluruPemain;
+/**
+ * @brief Vektor yang menyimpan semua objek musuh yang aktif.
+ */
 std::vector<Musuh> musuhMusuh;
+/**
+ * @brief Vektor yang menyimpan semua objek bintang (item bonus) yang aktif.
+ */
 std::vector<Bintang> koleksiBintang;
 
+/**
+ * @brief Posisi gulir untuk lapisan latar belakang terjauh (paralaks).
+ */
 float gulirBelakang = 0.0f;
-float gulirTengah = 0.0f;
-float gulirDepan = 0.0f;
 
+/**
+ * @brief Posisi gulir untuk lapisan latar belakang tengah (paralaks).
+ */
+float gulirTengah = 0.0f;  // Tidak digunakan dalam kode saat ini, bisa dihapus
+                           // atau diimplementasikan.
+
+/**
+ * @brief Posisi gulir untuk lapisan latar belakang terdekat (paralaks).
+ */
+float gulirDepan = 0.0f;  // Tidak digunakan dalam kode saat ini, bisa dihapus
+                          // atau diimplementasikan.
+
+/**
+ * @brief Tekstur untuk latar belakang game.
+ */
 Texture2D teksturLatarBelakang;
+
+/**
+ * @brief Tekstur untuk pesawat pemain.
+ */
 Texture2D teksturPemain;
+/**
+ * @brief Vektor yang menyimpan berbagai tekstur untuk musuh.
+ */
 std::vector<Texture2D> teksturMusuhArray;
+
+/**
+ * @brief Tekstur untuk peluru pemain.
+ */
 Texture2D teksturPeluru;
+
+/**
+ * @brief Tekstur untuk item bonus bintang.
+ */
 Texture2D teksturBintang;
 
-// Random number generation
+// -------------- Random number generation ----------------------------------
+/**
+ * @brief Sumber acak untuk generator angka acak.
+ */
 std::random_device rd;
+/**
+ * @brief Generator angka acak Mersenne Twister.
+ */
 std::mt19937 gen(rd());
+/**
+ * @brief Distribusi integer untuk posisi Y spawn musuh.
+ */
 std::uniform_int_distribution<> spawnYMusuh(0, SCREEN_HEIGHT - 50);
+/**
+ * @brief Distribusi float untuk kecepatan musuh.
+ */
 std::uniform_real_distribution<> kecepatanMusuh(100.0f, 250.0f);
+/**
+ * @brief Distribusi integer untuk memilih indeks tekstur musuh.
+ */
 std::uniform_int_distribution<> indeksTeksturMusuh(0, 3);
 
+/**
+ * @brief Distribusi integer untuk posisi Y spawn bintang.
+ */
 std::uniform_int_distribution<> spawnYBintang(0, SCREEN_HEIGHT - 30);
+/**
+ * @brief Distribusi float untuk kecepatan bintang.
+ */
 std::uniform_real_distribution<> kecepatanBintang(80.0f, 180.0f);
 
 // Timers
+/**
+ * @brief Waktu terakhir musuh di-spawn.
+ */
 double waktuSpawnMusuhTerakhir = 0.0;
+/**
+ * @brief Interval waktu antar spawn musuh.
+ */
 float intervalSpawnMusuh = 2.0f;
+/**
+ * @brief Waktu terakhir bintang di-spawn.
+ */
 double waktuSpawnBintangTerakhir = 0.0;
+/**
+ * @brief Interval waktu antar spawn bintang.
+ */
 float intervalSpawnBintang = 5.0f;
+/**
+ * @brief Waktu terakhir pemain menembak.
+ */
 double waktuTembakTerakhir = 0.0;
+/**
+ * @brief Laju tembak pemain (interval antar tembakan).
+ */
 float lajuTembakPemain = 0.15f;
 
 // --- Prototipe Fungsi (untuk tanggung jawab main.cpp) ---
+/**
+ * @brief Mereset semua elemen permainan ke kondisi awal untuk memulai game
+ * baru.
+ *
+ * Ini termasuk mereset skor, nyawa, jumlah peluru, mengosongkan vektor
+ * peluru, musuh, dan bintang, serta mereset timer spawn.
+ */
 void ResetElemenPermainan();
 
+/**
+ * @brief Fungsi utama program.
+ *
+ * Menginisialisasi jendela game, memuat aset, mengatur game loop,
+ * dan mengelola logika game berdasarkan status game saat ini.
+ * Juga menangani de-inisialisasi sumber daya.
+ *
+ * @return Kode keluar program (0 untuk sukses).
+ */
 int main() {
   InisialisasiGameWindow();
 
@@ -143,14 +290,16 @@ int main() {
                 (float)teksturPemain.width, (float)teksturPemain.height};
 
   InitPlayerData();  // This will now also initialize the database
-
   SetTargetFPS(60);
 
+  // -------- Game Loop -----------------------------------
   while (!WindowShouldClose()) {
+    // waktu yang telah berlalu sejak frame terakhir digambar
     float deltaWaktu = GetFrameTime();
     hitunganBingkai++;
     searchFramesCounter++;
 
+    // Status untuk logika game
     switch (statusGameSaatIni) {
       case LAYAR_JUDUL: {
         // Define the START button rectangle
@@ -754,6 +903,13 @@ int main() {
 }
 
 // --- Definisi Fungsi untuk main.cpp ---
+/**
+ * @brief Mereset semua elemen permainan ke kondisi awal untuk memulai game
+ * baru.
+ *
+ * Ini termasuk mereset skor, nyawa, jumlah peluru, mengosongkan vektor
+ * peluru, musuh, dan bintang, serta mereset timer spawn.
+ */
 void ResetElemenPermainan() {
   skorSaatIni = 0;
   nyawaSaatIni = 1;
